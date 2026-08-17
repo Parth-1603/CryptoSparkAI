@@ -2,8 +2,8 @@ import React from 'react';
 import GlassCard from '../components/shared/GlassCard';
 
 const contributors = [
-  { name: 'Alex Thorne', role: 'ML Specialist', desc: 'Optimized Random Forest and LSTM ensembles for volatility classification.', initials: 'AT', bg: 'bg-gradient-primary text-white' },
-  { name: 'Elena Vance', role: 'Data Engineer', desc: 'Architected the Apache Spark streaming layer and AWS S3 data lake integration.', initials: 'EV', bg: 'bg-lime text-charcoal' },
+  { name: 'Parth Patil', role: 'ML Specialist', desc: 'Optimized Random Forest and LSTM ensembles for volatility classification.', initials: 'AT', bg: 'bg-gradient-primary text-white' },
+  { name: 'Yadnika Patil', role: 'Data Engineer', desc: 'Architected the Apache Spark streaming layer and AWS S3 data lake integration.', initials: 'EV', bg: 'bg-lime text-charcoal' },
   { name: 'Jordan Mikael', role: 'Frontend Architect', desc: 'Engineered the real-time React dashboard with sub-100ms UI re-renders.', initials: 'JM', bg: 'bg-surface-container text-primary border border-outline-variant' },
 ];
 
