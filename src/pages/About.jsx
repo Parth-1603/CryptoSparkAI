@@ -69,7 +69,7 @@ export default function About() {
             { icon: 'track_changes', title: 'Real-time Stream Ingestion', desc: 'Harnessing Apache Spark Streaming to normalize disparate liquidity provider data at scale.' },
             { icon: 'insights', title: 'Multi-Factor Forecasting', desc: 'Deploying Scikit-Learn ensemble methods to predict price action within 5-minute windows.' },
             { icon: 'cloud_done', title: 'Cloud Resiliency', desc: 'Full AWS integration for automated model retraining and scalable storage logic.' },
-          ].map((item, i) => (
+          ].map((item) => (
             <GlassCard key={item.title} className="p-5 rounded-xl gradient-border">
               <div className="flex items-start gap-3">
                 <div className="w-9 h-9 rounded-lg bg-primary/8 flex items-center justify-center shrink-0">
