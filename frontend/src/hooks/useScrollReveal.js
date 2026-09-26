@@ -8,6 +8,9 @@ import { useEffect, useRef } from 'react';
 export function useScrollReveal(options = {}) {
   const ref = useRef(null);
 
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -19,7 +22,7 @@ export function useScrollReveal(options = {}) {
           observer.unobserve(el);
         }
       },
-      { threshold: 0.12, rootMargin: '0px 0px -40px 0px', ...options }
+      { threshold: 0.12, rootMargin: '0px 0px -40px 0px', ...optionsRef.current }
     );
 
     observer.observe(el);

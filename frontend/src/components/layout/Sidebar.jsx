@@ -65,7 +65,6 @@ export default function Sidebar({ isOpen, onClose }) {
                 to={item.path}
                 end={item.end}
                 onClick={onClose}
-                style={{ animationDelay: `${i * 40}ms` }}
                 className={({ isActive }) => `
                   relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
                   transition-all duration-200 animate-slide-in-left group
@@ -75,6 +74,7 @@ export default function Sidebar({ isOpen, onClose }) {
                   }
                 `}
                 style={({ isActive }) => ({
+                  animationDelay: `${i * 40}ms`,
                   background: isActive ? 'rgba(44,110,89,0.08)' : 'transparent',
                   color: isActive ? '#2C6E59' : 'var(--text-muted)',
                 })}
