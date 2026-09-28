@@ -13,12 +13,16 @@ import sys
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
+BUCKET = "cryptospark-ai-bucket"
+
 def create_spark():
     return SparkSession.builder \
         .appName("CryptoSpark-Preprocessing") \
-        .master("local[*]") \
         .config("spark.sql.adaptive.enabled", "true") \
         .getOrCreate()
+    # NOTE: no .master(...) here — EMR/YARN already sets the master
+    # when it submits the job. Forcing "local[*]" on top of that is
+    # what caused the immediate crash.
 
 def load_btc(spark, path):
     df = spark.read.csv(
@@ -122,23 +126,21 @@ def add_features(df, symbol):
     return df
 
 def save(df, out_path):
-    from pathlib import Path
-    out_file = Path(out_path)
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    
-    # Convert Spark DataFrame to Pandas and save to CSV
-    pdf = df.toPandas()
-    pdf.to_csv(out_file, index=False)
-    print(f"Saved -> {out_file}")
+    # Write directly to S3 using Spark instead of pandas + local disk.
+    # coalesce(1) forces a single output file instead of Spark's usual
+    # multi-part output, so you get one clean CSV instead of a folder
+    # of part-0000-*.csv files.
+    df.coalesce(1).write.mode("overwrite").option("header", "true").csv(out_path)
+    print(f"Saved -> {out_path}")
 
 def main():
     spark = create_spark()
 
     coins = [
-        ("BTC", "dataset/raw/btc_raw.csv", True),
-        ("ETH", "dataset/raw/eth_raw.csv", False),
-        ("SOL", "dataset/raw/sol_raw.csv", False),
-        ("ADA", "dataset/raw/ada_raw.csv", False),
+        ("BTC", f"s3://{BUCKET}/raw/btc_raw.csv", True),
+        ("ETH", f"s3://{BUCKET}/raw/eth_raw.csv", False),
+        ("SOL", f"s3://{BUCKET}/raw/sol_raw.csv", False),
+        ("ADA", f"s3://{BUCKET}/raw/ada_raw.csv", False),
     ]
 
     for symbol, path, is_btc in coins:
@@ -154,7 +156,7 @@ def main():
             df = clean(df, symbol)
 
         df = add_features(df, symbol)
-        save(df, f"dataset/processed/{symbol.lower()}_processed.csv")
+        save(df, f"s3://{BUCKET}/processed/{symbol.lower()}_processed_spark/")
 
     spark.stop()
     print("\n[SUCCESS] All 4 coins processed successfully")
