@@ -1,11 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
-    col, lag, avg, stddev,
-    first, last,
-    max as spark_max,
-    min as spark_min,
-    sum as spark_sum,
-    date_trunc, to_timestamp, lit
+    col, lag, avg, stddev, to_timestamp, lit
 )
 from pyspark.sql.window import Window
 import sys
@@ -20,45 +15,18 @@ def create_spark():
         .appName("CryptoSpark-Preprocessing") \
         .config("spark.sql.adaptive.enabled", "true") \
         .getOrCreate()
-    # NOTE: no .master(...) here — EMR/YARN already sets the master
-    # when it submits the job. Forcing "local[*]" on top of that is
-    # what caused the immediate crash.
+    # No .master(...) here on purpose - EMR/YARN sets it when the
+    # job is submitted. Forcing "local[*]" here was what crashed it before.
 
-def load_btc(spark, path):
-    df = spark.read.csv(
-        path, header=True, inferSchema=True)
-    vol_col = "Volume_(Currency)" if "Volume_(Currency)" in df.columns else "Volume"
-    df = df \
-        .withColumnRenamed("Timestamp", "timestamp") \
-        .withColumnRenamed("Open",      "open") \
-        .withColumnRenamed("High",      "high") \
-        .withColumnRenamed("Low",       "low") \
-        .withColumnRenamed("Close",     "close") \
-        .withColumn("volume",
-            col(vol_col).cast("double")) \
-        .withColumn("timestamp",
-            to_timestamp(col("timestamp").cast("long")))
-    return df.select(
-        "timestamp","open","high","low","close","volume")
-
-def load_altcoin(spark, path, symbol):
-    df = spark.read.csv(
-        path, header=True, inferSchema=True)
-    df = df \
-        .withColumn("timestamp",
-            to_timestamp(col("Date"))) \
-        .withColumn("open",
-            col("Open").cast("double")) \
-        .withColumn("high",
-            col("High").cast("double")) \
-        .withColumn("low",
-            col("Low").cast("double")) \
-        .withColumn("close",
-            col("Close").cast("double")) \
-        .withColumn("volume",
-            col("Volume").cast("double"))
-    return df.select(
-        "timestamp","open","high","low","close","volume")
+def load(spark, path, symbol):
+    # All 4 raw files share the same schema:
+    # timestamp, open, high, low, close, volume (all lowercase)
+    df = spark.read.csv(path, header=True, inferSchema=True)
+    df = df.withColumn(
+        "timestamp",
+        to_timestamp(col("timestamp"), "yyyy-MM-dd HH:mm:ss")
+    )
+    return df.select("timestamp", "open", "high", "low", "close", "volume")
 
 def clean(df, symbol):
     before = df.count()
@@ -74,21 +42,6 @@ def clean(df, symbol):
     after = df.count()
     print(f"{symbol}: {before:,} -> {after:,} rows after cleaning")
     return df
-
-def resample_to_daily(df, symbol):
-    df = df.withColumn("day",
-        date_trunc("day", col("timestamp")))
-    daily = df.groupBy("day").agg(
-        first("open",  ignorenulls=True).alias("open"),
-        spark_max("high").alias("high"),
-        spark_min("low").alias("low"),
-        last("close",  ignorenulls=True).alias("close"),
-        spark_sum("volume").alias("volume")
-    ).withColumnRenamed("day", "timestamp") \
-     .orderBy("timestamp") \
-     .withColumn("symbol", lit(symbol))
-    print(f"{symbol} after daily resample: {daily.count():,} rows")
-    return daily
 
 def add_features(df, symbol):
     w7   = Window.orderBy("timestamp").rowsBetween(-6,  0)
@@ -126,35 +79,24 @@ def add_features(df, symbol):
     return df
 
 def save(df, out_path):
-    # Write directly to S3 using Spark instead of pandas + local disk.
-    # coalesce(1) forces a single output file instead of Spark's usual
-    # multi-part output, so you get one clean CSV instead of a folder
-    # of part-0000-*.csv files.
+    # Write directly to S3 using Spark (not pandas/local disk,
+    # which would disappear when the cluster terminates).
+    # coalesce(1) forces one output CSV instead of many part-files.
     df.coalesce(1).write.mode("overwrite").option("header", "true").csv(out_path)
     print(f"Saved -> {out_path}")
 
 def main():
     spark = create_spark()
 
-    coins = [
-        ("BTC", f"s3://{BUCKET}/raw/btc_raw.csv", True),
-        ("ETH", f"s3://{BUCKET}/raw/eth_raw.csv", False),
-        ("SOL", f"s3://{BUCKET}/raw/sol_raw.csv", False),
-        ("ADA", f"s3://{BUCKET}/raw/ada_raw.csv", False),
-    ]
+    coins = ["BTC", "ETH", "SOL", "ADA"]
 
-    for symbol, path, is_btc in coins:
+    for symbol in coins:
         print(f"\n{'='*40}")
         print(f"Processing {symbol}...")
 
-        if is_btc:
-            df = load_btc(spark, path)
-            df = clean(df, symbol)
-            df = resample_to_daily(df, symbol)
-        else:
-            df = load_altcoin(spark, path, symbol)
-            df = clean(df, symbol)
-
+        path = f"s3://{BUCKET}/raw/{symbol.lower()}_raw.csv"
+        df = load(spark, path, symbol)
+        df = clean(df, symbol)
         df = add_features(df, symbol)
         save(df, f"s3://{BUCKET}/processed/{symbol.lower()}_processed_spark/")
 
