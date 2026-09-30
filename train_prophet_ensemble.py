@@ -78,69 +78,75 @@ print("TRAINING PROPHET - ALL 4 COINS")
 print("=" * 50)
 
 prophet_results = []
+all_prophet_exist = all(os.path.exists(f"models/{coin}/prophet.joblib") for coin in COINS) and os.path.exists("results/prophet_results.csv")
 
-for coin in COINS:
-    print(f"\n{'='*40}\nCoin: {coin.upper()}")
+if all_prophet_exist:
+    print("\n[INFO] Found existing trained Prophet models and results. Loading existing Prophet results...")
+    prophet_df_results = pd.read_csv("results/prophet_results.csv")
+    print(prophet_df_results.to_string(index=False))
+else:
+    for coin in COINS:
+        print(f"\n{'='*40}\nCoin: {coin.upper()}")
 
-    df = load_coin(coin)
+        df = load_coin(coin)
 
-    prophet_df = df[["timestamp", "close"]].copy()
-    prophet_df = prophet_df.rename(columns={"timestamp": "ds", "close": "y"})
-    prophet_df["ds"] = pd.to_datetime(prophet_df["ds"])
-    prophet_df = prophet_df.dropna()
+        prophet_df = df[["timestamp", "close"]].copy()
+        prophet_df = prophet_df.rename(columns={"timestamp": "ds", "close": "y"})
+        prophet_df["ds"] = pd.to_datetime(prophet_df["ds"])
+        prophet_df = prophet_df.dropna()
 
-    split    = int(len(prophet_df) * 0.80)
-    train_df = prophet_df.iloc[:split]
-    test_df  = prophet_df.iloc[split:]
+        split    = int(len(prophet_df) * 0.80)
+        train_df = prophet_df.iloc[:split]
+        test_df  = prophet_df.iloc[split:]
 
-    print(f"  Train rows : {len(train_df):,}")
-    print(f"  Test  rows : {len(test_df):,}")
+        print(f"  Train rows : {len(train_df):,}")
+        print(f"  Test  rows : {len(test_df):,}")
 
-    model = Prophet(
-        daily_seasonality=True,
-        yearly_seasonality=True,
-        weekly_seasonality=True,
-        changepoint_prior_scale=0.05,
-        seasonality_prior_scale=10.0
-    )
-    model.fit(train_df)
+        model = Prophet(
+            daily_seasonality=True,
+            yearly_seasonality=True,
+            weekly_seasonality=True,
+            changepoint_prior_scale=0.05,
+            seasonality_prior_scale=10.0
+        )
+        model.fit(train_df)
 
-    future   = model.make_future_dataframe(periods=len(test_df), freq="D")
-    forecast = model.predict(future)
+        future   = model.make_future_dataframe(periods=len(test_df), freq="D")
+        forecast = model.predict(future)
 
-    preds  = forecast["yhat"].iloc[split:].values
-    y_true = test_df["y"].values
+        preds  = forecast["yhat"].iloc[split:].values
+        y_true = test_df["y"].values
 
-    n      = min(len(preds), len(y_true))
-    preds  = preds[:n]
-    y_true = y_true[:n]
+        n      = min(len(preds), len(y_true))
+        preds  = preds[:n]
+        y_true = y_true[:n]
 
-    result = evaluate(y_true, preds, "Prophet", coin)
-    prophet_results.append(result)
+        result = evaluate(y_true, preds, "Prophet", coin)
+        prophet_results.append(result)
 
-    save_artifact(model, coin, "prophet.joblib")
+        save_artifact(model, coin, "prophet.joblib")
 
-    colors = {"btc": "#f7931a", "eth": "#627eea", "sol": "#9945ff", "ada": "#0033ad"}
-    plt.figure(figsize=(14, 5))
-    plt.plot(y_true[-100:], label="Actual", color=colors[coin], linewidth=2)
-    plt.plot(preds[-100:],  label="Prophet Predicted", color="black", linestyle="--", linewidth=1.5, alpha=0.85)
-    plt.title(f"{coin.upper()} - Prophet Actual vs Predicted")
-    plt.xlabel("Days")
-    plt.ylabel("Price USD")
-    plt.legend()
-    plt.grid(True, alpha=0.3)
-    plt.tight_layout()
-    plt.savefig(f"results/prophet_{coin}.png", dpi=100, bbox_inches="tight")
-    plt.close()
+        colors = {"btc": "#f7931a", "eth": "#627eea", "sol": "#9945ff", "ada": "#0033ad"}
+        plt.figure(figsize=(14, 5))
+        plt.plot(y_true[-100:], label="Actual", color=colors[coin], linewidth=2)
+        plt.plot(preds[-100:],  label="Prophet Predicted", color="black", linestyle="--", linewidth=1.5, alpha=0.85)
+        plt.title(f"{coin.upper()} - Prophet Actual vs Predicted")
+        plt.xlabel("Days")
+        plt.ylabel("Price USD")
+        plt.legend()
+        plt.grid(True, alpha=0.3)
+        plt.tight_layout()
+        plt.savefig(f"results/prophet_{coin}.png", dpi=100, bbox_inches="tight")
+        plt.close()
 
-    print(f"  [SUCCESS] {coin.upper()} Prophet done")
+        print(f"  [SUCCESS] {coin.upper()} Prophet done")
 
-prophet_df_results = pd.DataFrame(prophet_results)
-prophet_df_results.to_csv("results/prophet_results.csv", index=False)
-prophet_df_results.to_csv("prophet_results.csv", index=False)
+    prophet_df_results = pd.DataFrame(prophet_results)
+    prophet_df_results.to_csv("results/prophet_results.csv", index=False)
+    prophet_df_results.to_csv("prophet_results.csv", index=False)
 
-print("\n[SUCCESS] Prophet training complete")
-print(prophet_df_results.to_string(index=False))
+    print("\n[SUCCESS] Prophet training complete")
+    print(prophet_df_results.to_string(index=False))
 
 # ----------------------------------------------------
 # PART 3 — ENSEMBLE TRAINING
@@ -165,12 +171,15 @@ for coin in COINS:
     print(f"  XGBoost predictions: {len(p_xgb)}")
 
     # 2. LSTM predictions
-    lstm_model_path = f"models/{coin}/lstm.h5"
+    lstm_model_path = f"models/{coin}/lstm.keras"
     if not os.path.exists(lstm_model_path):
-        lstm_model_path = f"models/{coin}/lstm.keras"
-    lstm_model    = tf.keras.models.load_model(lstm_model_path)
-    scaler_lstm_X = joblib.load(f"models/{coin}/scaler_lstm_X.joblib")
-    scaler_lstm_y = joblib.load(f"models/{coin}/scaler_lstm_y.joblib")
+        lstm_model_path = f"models/{coin}/lstm.h5"
+    lstm_model = tf.keras.models.load_model(lstm_model_path, compile=False)
+    
+    scaler_lstm_X_path = f"models/{coin}/scaler_lstm_X.joblib" if os.path.exists(f"models/{coin}/scaler_lstm_X.joblib") else f"models/{coin}/scaler_X_lstm.joblib"
+    scaler_lstm_y_path = f"models/{coin}/scaler_lstm_y.joblib" if os.path.exists(f"models/{coin}/scaler_lstm_y.joblib") else f"models/{coin}/scaler_y_lstm.joblib"
+    scaler_lstm_X = joblib.load(scaler_lstm_X_path)
+    scaler_lstm_y = joblib.load(scaler_lstm_y_path)
 
     X_lstm_s   = scaler_lstm_X.transform(test[FEATURES])
     X_lstm_seq = make_sequences(X_lstm_s, SEQ_LEN)
@@ -242,16 +251,13 @@ print("FINAL MODEL COMPARISON - ALL MODELS ALL COINS")
 print("=" * 50)
 
 # Check summary files
-summary_file = "results/all_models_summary.csv"
-if os.path.exists(summary_file):
-    r_all_base = pd.read_csv(summary_file)
-else:
-    r_all_base = pd.DataFrame()
+r_all_base = pd.read_csv("results/all_models_summary.csv") if os.path.exists("results/all_models_summary.csv") else pd.DataFrame()
+r_lstm     = pd.read_csv("results/lstm_results_summary.csv") if os.path.exists("results/lstm_results_summary.csv") else pd.DataFrame()
+r_prop     = pd.read_csv("results/prophet_results.csv") if os.path.exists("results/prophet_results.csv") else pd.DataFrame()
+r_ens      = pd.read_csv("results/ensemble_results.csv") if os.path.exists("results/ensemble_results.csv") else pd.DataFrame()
 
-r_prop = pd.read_csv("results/prophet_results.csv")
-r_ens  = pd.read_csv("results/ensemble_results.csv")
-
-final = pd.concat([r_all_base, r_prop, r_ens], ignore_index=True)
+final = pd.concat([r_all_base, r_lstm, r_prop, r_ens], ignore_index=True)
+final = final.drop_duplicates(subset=["coin", "model"], keep="last")
 final = final.sort_values(["coin", "r2"], ascending=[True, False]).reset_index(drop=True)
 
 print("\nFull comparison table:")
@@ -259,9 +265,14 @@ print(final.to_string(index=False))
 
 final.to_csv("all_models_comparison.csv", index=False)
 final.to_csv("results/all_models_comparison.csv", index=False)
+final.to_csv("models/all_models_comparison.csv", index=False)
 
-print("\n[SUCCESS] Saved: all_models_comparison.csv")
+print("\n[SUCCESS] Saved: models/all_models_comparison.csv and results/all_models_comparison.csv")
 
 print("\n=== BEST MODEL PER COIN (by R2) ===")
 best = final.loc[final.groupby("coin")["r2"].idxmax()]
 print(best[["coin", "model", "mae", "rmse", "r2"]].to_string(index=False))
+
+import shutil
+shutil.make_archive("models_all_coins", "zip", "models")
+print("\n[SUCCESS] Created: models_all_coins.zip")

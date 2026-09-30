@@ -141,9 +141,12 @@ for coin in COINS:
     folder = f"models/{coin}"
     os.makedirs(folder, exist_ok=True)
     model.save(f"{folder}/lstm.h5")
+    model.save(f"{folder}/lstm.keras")
+    joblib.dump(scaler_X, f"{folder}/scaler_lstm_X.joblib")
+    joblib.dump(scaler_y, f"{folder}/scaler_lstm_y.joblib")
     joblib.dump(scaler_X, f"{folder}/scaler_X_lstm.joblib")
     joblib.dump(scaler_y, f"{folder}/scaler_y_lstm.joblib")
-    print(f"  [SAVED] -> {folder}/lstm.h5")
+    print(f"  [SAVED] -> {folder}/lstm.h5 & scalers")
 
 lstm_df = pd.DataFrame(lstm_results)
 lstm_df.to_csv("results/lstm_results_summary.csv", index=False)
