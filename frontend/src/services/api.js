@@ -60,6 +60,40 @@ export const api = {
   predict: (asset, period, algorithm) =>
     request('POST', '/v1/predict', { asset, period, algorithm }),
 
+  // ── Explainability ──────────────────────────────────────────────────
+  /**
+   * Request natural language AI explainability for a prediction result.
+   * @param {Object} predictionData Full result object returned by api.predict()
+   */
+  explain: (predictionData) =>
+    request('POST', '/v1/explain', {
+      asset: predictionData.asset,
+      period: predictionData.period,
+      algorithm: predictionData.algorithm,
+      predictedPrice: predictionData.price,
+      currentPrice: predictionData.currentPrice,
+      signal: predictionData.signal,
+      confidence: predictionData.confidence,
+      pnlEstimate: predictionData.pnlEstimate,
+      features: predictionData.features,
+      topFeatures: predictionData.topFeatures,
+    }),
+
+  // ── Pipeline Health ─────────────────────────────────────────────────
+  /**
+   * Returns end-to-end component health (models, datasets, APIs).
+   */
+  getPipelineHealth: () => request('GET', '/v1/pipeline/health'),
+
+  // ── Model Metrics ───────────────────────────────────────────────────
+  /** Returns leaderboard and feature importances */
+  getModelMetrics: () => request('GET', '/v1/models/metrics'),
+
+  // ── Infrastructure ──────────────────────────────────────────────────
+  /** Returns cluster and processing status */
+  getInfrastructureStatus: () => request('GET', '/v1/infrastructure/status'),
+  getInfrastructureLogs: () => request('GET', '/v1/infrastructure/logs'),
+
   // ── Chatbot ─────────────────────────────────────────────────────────
   /**
    * Send a message to the AI assistant.
