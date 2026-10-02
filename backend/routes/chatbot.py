@@ -9,7 +9,12 @@ from groq import Groq
 load_dotenv()
 
 router = APIRouter()
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+
+def get_groq_client():
+    api_key = os.environ.get("GROQ_API_KEY")
+    if not api_key:
+        return None
+    return Groq(api_key=api_key)
 
 SYSTEM_PROMPT = """You are CryptoSpark AI Assistant — an intelligent 
 analytics chatbot embedded in CryptoSpark AI, a final-year engineering 
@@ -56,6 +61,13 @@ async def chat(req: ChatRequest):
     })
 
     try:
+        client = get_groq_client()
+        if not client:
+            return {
+                "text": "CryptoSpark AI Assistant is ready! To enable dynamic AI responses, please set GROQ_API_KEY in backend/.env. In the meantime, you can explore predictions, model metrics, and market data on the dashboard.",
+                "chips": ["What is XGBoost?", "View metrics", "Run prediction"]
+            }
+
         resp = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=messages,
