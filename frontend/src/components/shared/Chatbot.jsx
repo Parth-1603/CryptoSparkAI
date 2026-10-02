@@ -1,66 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-
-/* ── Pre-programmed knowledge base ─────────────────── */
-const KB = [
-  {
-    triggers: ['hello', 'hi', 'hey', 'start', 'help', 'sup'],
-    text: "Hey! 👋 I'm the CryptoSpark AI assistant. I can help you understand our platform, ML models, infrastructure, and predictions. What are you curious about?",
-    chips: ['How accurate?', 'What models?', 'How to start', 'Infrastructure'],
-  },
-  {
-    triggers: ['accurate', 'accuracy', 'precision', 'reliable', 'correct', 'performance'],
-    text: "Our production XGBoost model achieves **94.2% accuracy** on historical out-of-sample data. The LSTM challenger hits 91.8%. Both are continuously retrained via AWS SageMaker on 1.2 TB of historical data.",
-    chips: ['What models?', 'View metrics', 'Infrastructure'],
-  },
-  {
-    triggers: ['model', 'algorithm', 'lstm', 'xgboost', 'ml', 'machine learning', 'ai'],
-    text: "We run an ensemble of four models:\n🟢 XGBoost — 94.2% (production)\n🟡 LSTM — 91.8% (challenger)\n⚪ Random Forest — 88.5%\n⚫ Linear Regression — 76.4% (baseline)\n\nXGBoost and LSTM are the primary pair.",
-    chips: ['How accurate?', 'View model metrics', 'Infrastructure'],
-  },
-  {
-    triggers: ['aws', 'infrastructure', 'pipeline', 'spark', 'architecture', 'cloud', 'emr', 'sagemaker', 's3'],
-    text: "The pipeline is fully cloud-native:\nRaw API data → Amazon S3 Data Lake → AWS EMR (Apache Spark) → PySpark ETL & Feature Engineering → SageMaker inference → Live React dashboard.\n\nLatency: <45ms end-to-end.",
-    chips: ['View pipeline', 'Model accuracy', 'Get started'],
-  },
-  {
-    triggers: ['start', 'get started', 'begin', 'dashboard', 'use', 'try', 'access', 'open'],
-    text: "You can jump straight in! Head to the **Dashboard** for live market data, or open the **Predictions** page to run the ML models interactively — choose your asset, timeframe, and algorithm.",
-    chips: ['Dashboard', 'Try Predictions', 'View Architecture'],
-  },
-  {
-    triggers: ['crypto', 'bitcoin', 'btc', 'ethereum', 'eth', 'solana', 'market', 'price', 'coin'],
-    text: "We cover BTC/USD, ETH/USD, SOL/USD, ADA/USD, and BNB/USD with live WebSocket feeds. Our models analyze 200+ indicators: RSI, MACD, Bollinger Bands, order book imbalance, and on-chain sentiment.",
-    chips: ['Try Predictions', 'Dashboard', 'Model accuracy'],
-  },
-  {
-    triggers: ['about', 'project', 'who', 'team', 'capstone', 'academic', 'built', 'made'],
-    text: "CryptoSpark AI is an academic capstone project. The team includes ML specialists, data engineers, and frontend architects. We process 1.2TB+ of training data daily through a distributed Spark pipeline.",
-    chips: ['Meet team', 'Infrastructure', 'Model accuracy'],
-  },
-  {
-    triggers: ['free', 'cost', 'price', 'pay', 'subscription', 'plan'],
-    text: "CryptoSpark AI is a 100% free academic research platform. All features are fully accessible — no account required.",
-    chips: ['Get started', 'View Dashboard'],
-  },
-  {
-    triggers: ['dark', 'light', 'theme', 'mode', 'colour', 'color'],
-    text: "You can toggle between dark and light mode using the sun/moon icon in the top navigation bar. Your preference is saved automatically.",
-    chips: ['How to start', 'About project'],
-  },
-];
-
-const DEFAULT = {
-  text: "I'm not sure I have specific info on that, but I can help with our platform, models, infrastructure, or predictions. Try one of these:",
-  chips: ['How accurate?', 'What models?', 'Infrastructure', 'Get started'],
-};
-
-function matchResponse(input) {
-  const lower = input.toLowerCase();
-  for (const entry of KB) {
-    if (entry.triggers.some(t => lower.includes(t))) return entry;
-  }
-  return DEFAULT;
-}
+import { api } from '../../services/api';
 
 /* ── Format bold markdown (**text**) ─────────────── */
 function formatText(text) {
@@ -107,29 +46,40 @@ export default function Chatbot() {
   useEffect(() => { setMounted(true); }, []);
 
   const addBotMessage = (text, chips) => {
-    setIsTyping(true);
-    const delay = 600 + Math.min(text.length * 5, 1000);
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages(prev => [
-        ...prev,
-        { id: msgId.current++, from: 'bot', text, chips },
-      ]);
-    }, delay);
+    setMessages(prev => [
+      ...prev,
+      { id: msgId.current++, from: 'bot', text, chips },
+    ]);
   };
 
-  const send = (value) => {
+  const send = async (value) => {
     const trimmed = (value || input).trim();
     if (!trimmed) return;
     setInput('');
+
+    const historySnapshot = messages.map(m => ({
+      role: m.from === 'user' ? 'user' : 'assistant',
+      content: m.text,
+    }));
 
     setMessages(prev => [
       ...prev,
       { id: msgId.current++, from: 'user', text: trimmed },
     ]);
 
-    const resp = matchResponse(trimmed);
-    addBotMessage(resp.text, resp.chips);
+    setIsTyping(true);
+    try {
+      const res = await api.chat(trimmed, historySnapshot);
+      setIsTyping(false);
+      addBotMessage(res.text, res.chips);
+    } catch (err) {
+      setIsTyping(false);
+      addBotMessage(
+        "Sorry, I couldn't reach the server just now. Please try again in a moment.",
+        []
+      );
+      console.error('Chatbot request failed:', err);
+    }
   };
 
   const handleKey = (e) => {
@@ -181,7 +131,7 @@ export default function Chatbot() {
               <div>
                 <p className="text-white font-bold text-sm">CryptoSpark AI</p>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="live-dot" style={{ background:'#A2E037' }} />
+                  <span className="live-dot" style={{ background: '#A2E037' }} />
                   <span className="text-white/70 text-[10px] font-semibold tracking-wide">ONLINE · AI Assistant</span>
                 </div>
               </div>
@@ -197,18 +147,17 @@ export default function Chatbot() {
               <div key={msg.id} className={`flex flex-col gap-1.5 ${msg.from === 'user' ? 'items-end' : 'items-start'}`}>
                 {/* Bubble */}
                 <div
-                  className={`chat-msg-${msg.from} max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed whitespace-pre-line ${
-                    msg.from === 'user'
+                  className={`chat-msg-${msg.from} max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed whitespace-pre-line ${msg.from === 'user'
                       ? 'bg-primary text-white rounded-br-sm font-medium'
                       : 'rounded-bl-sm font-medium'
-                  }`}
+                    }`}
                   style={msg.from === 'bot' ? { background: 'var(--surface-low)', color: 'var(--text)' } : {}}
                 >
                   {msg.from === 'bot' ? formatText(msg.text) : msg.text}
                 </div>
 
                 {/* Quick chips */}
-                {msg.chips && msg.from === 'bot' && (
+                {msg.chips && msg.chips.length > 0 && msg.from === 'bot' && (
                   <div className="flex flex-wrap gap-1.5 mt-0.5">
                     {msg.chips.map(chip => (
                       <button
@@ -239,9 +188,6 @@ export default function Chatbot() {
                 </div>
               </div>
             )}
-
-
-
           </div>
 
           {/* Input */}

@@ -1,28 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import KPICard from '../components/shared/KPICard';
 import GlassCard from '../components/shared/GlassCard';
+import { api } from '../services/api';
 
 export default function Dashboard() {
-  const [accuracy, setAccuracy] = useState(94.2);
+  const [summary, setSummary] = useState(null);
+  const [watchlist, setWatchlist] = useState([]);
+  const [signals, setSignals] = useState([]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setAccuracy(prev => +(prev + (Math.random() - 0.5) * 0.15).toFixed(1));
-    }, 4000);
-    return () => clearInterval(interval);
+    api.getMarketSummary().then(setSummary).catch(console.error);
+    api.getWatchlist().then(setWatchlist).catch(console.error);
+    api.getSignals().then(setSignals).catch(console.error);
   }, []);
+
+  const kpis = summary?.kpis;
+
+  // Market dominance donut math — convert live percentages into the
+  // stroke-dasharray/offset values the two overlaid SVG circles need.
+  const dominance = summary?.marketDominance || { btc: 54.2, eth: 18.5, other: 27.3 };
+  const CIRC = 2 * Math.PI * 54; // r=54, matches the circle radius below
+  const btcLen = CIRC * (dominance.btc / 100);
+  const ethLen = CIRC * (dominance.eth / 100);
+
+  // Sentiment gauge math
+  const sentiment = summary?.marketSentiment || { score: 72, label: 'Greed' };
+  const SENT_CIRC = 2 * Math.PI * 60; // r=60
+  const sentOffset = SENT_CIRC - (SENT_CIRC * sentiment.score) / 100;
+
+  // Volatility bar widths — clamp into a reasonable 0-100% visual range
+  const volatility = summary?.volatilityIndex || { deviation30d: 4.82, intradayRange: 1420 };
+  const deviationBarWidth = Math.min(100, volatility.deviation30d * 10);
+  const intradayBarWidth = Math.min(100, (volatility.intradayRange / 2000) * 100);
+
+  const kpiCards = [
+    {
+      label: 'BTC/USD',
+      value: kpis?.btcUsd?.value || '...',
+      change: kpis?.btcUsd?.change || '',
+      isPositive: kpis?.btcUsd?.isPositive ?? true,
+    },
+    {
+      label: 'ETH/USD',
+      value: kpis?.ethUsd?.value || '...',
+      change: kpis?.ethUsd?.change || '',
+      isPositive: kpis?.ethUsd?.isPositive ?? true,
+    },
+    { label: 'TOTAL CAP', value: kpis?.totalCap || '...' },
+    { label: 'VOLUME (24H)', value: kpis?.volume24h || '...' },
+    {
+      label: 'MODEL ACCURACY',
+      value: kpis?.modelAccuracy || '...',
+      highlight: true,
+      subtext: kpis?.activeModel?.engine || '',
+    },
+  ];
 
   return (
     <div className="space-y-6">
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[
-          { label: 'BTC/USD', value: '$67,420', change: '+2.4%', isPositive: true },
-          { label: 'ETH/USD', value: '$3,540', change: '+1.8%', isPositive: true },
-          { label: 'TOTAL CAP', value: '$2.48T' },
-          { label: 'VOLUME (24H)', value: '$88.4B' },
-          { label: 'MODEL ACCURACY', value: `${accuracy}%`, highlight: true, subtext: 'LSTM Engine' },
-        ].map((card, i) => (
+        {kpiCards.map((card, i) => (
           <div key={card.label} className="animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
             <KPICard {...card} />
           </div>
@@ -33,10 +71,14 @@ export default function Dashboard() {
           <GlassCard className="p-4 rounded-lg flex flex-col justify-between h-full">
             <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">ACTIVE MODEL</span>
             <div className="mt-2">
-              <span className="font-title-md text-title-md font-bold tracking-wide text-charcoal">LSTM v2.4</span>
+              <span className="font-title-md text-title-md font-bold tracking-wide text-charcoal">
+                {kpis?.activeModel?.name || '...'}
+              </span>
               <div className="flex items-center gap-1 mt-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-mint-green animate-pulse"></span>
-                <span className="text-[9px] text-mint-green uppercase font-bold tracking-widest">Running</span>
+                <span className="text-[9px] text-mint-green uppercase font-bold tracking-widest">
+                  {kpis?.activeModel?.status || 'Running'}
+                </span>
               </div>
             </div>
           </GlassCard>
@@ -47,7 +89,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-12 gap-6">
         {/* Left: Chart + Tables */}
         <div className="col-span-12 lg:col-span-9 space-y-6">
-          {/* Price Trend Chart */}
+          {/* Price Trend Chart — kept as a visual placeholder; wiring this to
+              real historical data would use api.getHistorical('btc') */}
           <GlassCard className="p-6 rounded-xl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div>
@@ -60,10 +103,9 @@ export default function Dashboard() {
                 </p>
               </div>
               <div className="flex bg-surface-container-low rounded-lg p-1 border border-outline-variant">
-                {['1D','1W','1M','1Y'].map((t, i) => (
-                  <button key={t} className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all duration-200 ${
-                    i === 0 ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
-                  }`}>{t}</button>
+                {['1D', '1W', '1M', '1Y'].map((t, i) => (
+                  <button key={t} className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all duration-200 ${i === 0 ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
+                    }`}>{t}</button>
                 ))}
               </div>
             </div>
@@ -72,17 +114,14 @@ export default function Dashboard() {
               <svg className="w-full h-full" viewBox="0 0 1000 400" preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2C6E59" stopOpacity="0.15"/>
-                    <stop offset="100%" stopColor="#2C6E59" stopOpacity="0"/>
+                    <stop offset="0%" stopColor="#2C6E59" stopOpacity="0.15" />
+                    <stop offset="100%" stopColor="#2C6E59" stopOpacity="0" />
                   </linearGradient>
                 </defs>
-                {/* Grid lines */}
                 {[100, 200, 300].map(y => (
                   <line key={y} stroke="#e1e3e0" strokeDasharray="4,4" x1="0" x2="1000" y1={y} y2={y} />
                 ))}
-                {/* Fill area */}
                 <path d="M0 350 Q 150 320 250 280 T 500 240 T 750 120 T 1000 80 V 400 H 0 Z" fill="url(#chartGrad)" />
-                {/* Main line */}
                 <path
                   className="chart-line"
                   d="M0 350 Q 150 320 250 280 T 500 240 T 750 120 T 1000 80"
@@ -91,7 +130,7 @@ export default function Dashboard() {
               </svg>
               <div className="absolute top-8 right-16 flex flex-col items-end">
                 <div className="bg-primary text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-md font-mono">
-                  PRED: $69,200
+                  PRED: {kpis?.btcUsd?.value || '$69,200'}
                 </div>
                 <div className="w-px h-12 bg-primary/30 mt-1 mx-auto"></div>
               </div>
@@ -105,19 +144,27 @@ export default function Dashboard() {
               <div className="flex items-center justify-around h-44">
                 <div className="relative w-32 h-32 flex items-center justify-center">
                   <svg className="w-full h-full -rotate-90">
-                    <circle cx="64" cy="64" r="54" fill="none" stroke="#f2f4f1" strokeWidth="10"/>
-                    <circle cx="64" cy="64" r="54" fill="none" stroke="#2C6E59" strokeWidth="10" strokeDasharray="339.29" strokeDashoffset="150"/>
-                    <circle cx="64" cy="64" r="54" fill="none" stroke="#A2E037" strokeWidth="10" strokeDasharray="339.29" strokeDashoffset="300"/>
+                    <circle cx="64" cy="64" r="54" fill="none" stroke="#f2f4f1" strokeWidth="10" />
+                    <circle
+                      cx="64" cy="64" r="54" fill="none" stroke="#2C6E59" strokeWidth="10"
+                      strokeDasharray={`${btcLen} ${CIRC - btcLen}`}
+                      strokeDashoffset="0"
+                    />
+                    <circle
+                      cx="64" cy="64" r="54" fill="none" stroke="#A2E037" strokeWidth="10"
+                      strokeDasharray={`${ethLen} ${CIRC - ethLen}`}
+                      strokeDashoffset={-btcLen}
+                    />
                   </svg>
                   <div className="absolute text-center">
                     <span className="text-[10px] text-on-surface-variant font-bold uppercase">BTC</span>
-                    <p className="text-xl font-black text-charcoal">54.2%</p>
+                    <p className="text-xl font-black text-charcoal">{dominance.btc}%</p>
                   </div>
                 </div>
                 <div className="space-y-2 text-xs">
-                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-primary"></span><span className="font-semibold">BTC 54.2%</span></div>
-                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-lime"></span><span className="font-semibold">ETH 18.5%</span></div>
-                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-outline-variant"></span><span className="font-semibold">Other 27.3%</span></div>
+                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-primary"></span><span className="font-semibold">BTC {dominance.btc}%</span></div>
+                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-lime"></span><span className="font-semibold">ETH {dominance.eth}%</span></div>
+                  <div className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full bg-outline-variant"></span><span className="font-semibold">Other {dominance.other}%</span></div>
                 </div>
               </div>
             </GlassCard>
@@ -129,9 +176,8 @@ export default function Dashboard() {
                   <div
                     key={i}
                     style={{ height: `${h}%`, animationDelay: `${i * 60}ms` }}
-                    className={`w-full rounded-t bar-chart-bar ${
-                      i === 8 ? 'bg-primary' : 'bg-primary/20 hover:bg-primary/50 transition-colors duration-200'
-                    }`}
+                    className={`w-full rounded-t bar-chart-bar ${i === 8 ? 'bg-primary' : 'bg-primary/20 hover:bg-primary/50 transition-colors duration-200'
+                      }`}
                   />
                 ))}
               </div>
@@ -141,7 +187,7 @@ export default function Dashboard() {
             </GlassCard>
           </div>
 
-          {/* Watchlist Table */}
+          {/* Watchlist Table — now driven entirely by the live watchlist array */}
           <GlassCard className="rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-outline-variant flex justify-between items-center">
               <h3 className="font-bold text-sm text-on-surface">Live Market Watchlist</h3>
@@ -161,16 +207,12 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/50 text-sm">
-                  {[
-                    { name: 'Bitcoin', sym: 'BTC', color: '#f7931a', letter: '₿', price: '$67,420.21', change: '+2.4%', pos: true, vol: '$34.2B', cap: '$1.32T' },
-                    { name: 'Ethereum', sym: 'ETH', color: '#627eea', letter: 'Ξ', price: '$3,540.85', change: '+1.8%', pos: true, vol: '$18.9B', cap: '$425.4B' },
-                    { name: 'Solana', sym: 'SOL', color: '#14f195', letter: 'S', price: '$145.32', change: '-0.4%', pos: false, vol: '$4.2B', cap: '$64.8B' },
-                  ].map(row => (
+                  {watchlist.map(row => (
                     <tr key={row.sym} className="hover:bg-surface-container-low/40 cursor-pointer transition-colors duration-150 group">
                       <td className="px-6 py-3.5">
                         <div className="flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white shadow-sm group-hover:scale-110 transition-transform duration-200"
-                               style={{ backgroundColor: row.color }}>
+                            style={{ backgroundColor: row.color }}>
                             {row.letter}
                           </div>
                           <div>
@@ -198,23 +240,24 @@ export default function Dashboard() {
             <p className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-4">Market Sentiment</p>
             <div className="relative inline-flex items-center justify-center mb-3">
               <svg className="w-36 h-36 -rotate-90">
-                <circle cx="72" cy="72" r="60" fill="none" stroke="#f2f4f1" strokeWidth="10"/>
+                <circle cx="72" cy="72" r="60" fill="none" stroke="#f2f4f1" strokeWidth="10" />
                 <circle
                   cx="72" cy="72" r="60"
                   fill="none" stroke="url(#sentGrad)" strokeWidth="10"
-                  strokeDasharray="376.99" strokeDashoffset="105"
+                  strokeDasharray={SENT_CIRC}
+                  strokeDashoffset={sentOffset}
                   strokeLinecap="round"
                 />
                 <defs>
                   <linearGradient id="sentGrad" x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="#2C6E59"/>
-                    <stop offset="100%" stopColor="#A2E037"/>
+                    <stop offset="0%" stopColor="#2C6E59" />
+                    <stop offset="100%" stopColor="#A2E037" />
                   </linearGradient>
                 </defs>
               </svg>
               <div className="absolute flex flex-col items-center">
-                <span className="text-3xl font-black text-charcoal numerical-data">72</span>
-                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">Greed</span>
+                <span className="text-3xl font-black text-charcoal numerical-data">{sentiment.score}</span>
+                <span className="text-[10px] font-bold text-primary uppercase tracking-wider">{sentiment.label}</span>
               </div>
             </div>
             <div className="flex justify-between text-[9px] text-cool-grey font-bold uppercase border-t border-outline-variant pt-3">
@@ -232,35 +275,31 @@ export default function Dashboard() {
               <div>
                 <div className="flex justify-between text-xs font-semibold mb-1.5">
                   <span className="text-cool-grey">30D Deviation</span>
-                  <span className="font-mono">4.82%</span>
+                  <span className="font-mono">{volatility.deviation30d}%</span>
                 </div>
                 <div className="h-1.5 bg-surface-container rounded-full overflow-hidden progress-bar">
-                  <div className="h-full bg-primary rounded-full w-[45%]"></div>
+                  <div className="h-full bg-primary rounded-full" style={{ width: `${deviationBarWidth}%` }}></div>
                 </div>
               </div>
               <div>
                 <div className="flex justify-between text-xs font-semibold mb-1.5">
                   <span className="text-cool-grey">Intraday Range</span>
-                  <span className="font-mono">$1,420</span>
+                  <span className="font-mono">${Math.round(volatility.intradayRange).toLocaleString()}</span>
                 </div>
                 <div className="h-1.5 bg-surface-container rounded-full overflow-hidden progress-bar">
-                  <div className="h-full bg-error rounded-full w-[70%]"></div>
+                  <div className="h-full bg-error rounded-full" style={{ width: `${intradayBarWidth}%` }}></div>
                 </div>
               </div>
             </div>
           </GlassCard>
 
-          {/* Global Signals */}
+          {/* Global Signals — now driven by the live signals array */}
           <GlassCard className="rounded-xl overflow-hidden">
             <div className="px-4 py-3 bg-surface-container-low border-b border-outline-variant">
               <h3 className="text-[10px] font-bold text-on-surface uppercase tracking-widest">Global Signals</h3>
             </div>
             <div className="p-4 space-y-3">
-              {[
-                { time: '2m ago', text: 'Whale transfer of 2,500 BTC to Coinbase Pro.', color: 'border-primary' },
-                { time: '15m ago', text: 'US CPI report exceeds expectations (+0.4%).', color: 'border-lime' },
-                { time: '42m ago', text: 'Solana v1.18 validator update deployed.', color: 'border-primary' },
-              ].map((sig, i) => (
+              {signals.map((sig, i) => (
                 <div key={i} className={`border-l-2 ${sig.color} pl-3 py-0.5`}>
                   <span className="text-[10px] text-cool-grey font-bold font-mono">{sig.time}</span>
                   <p className="text-xs font-medium text-on-surface mt-0.5 leading-relaxed">{sig.text}</p>
