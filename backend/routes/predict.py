@@ -6,15 +6,17 @@ import httpx
 import numpy as np
 import pandas as pd
 from backend.model_loader import loaded, model_status
-from backend.utils.feature_builder import get_latest_features, get_sequence_features, FEATURE_COLS
+from backend.utils.feature_builder import get_latest_features, FEATURES
 
 router = APIRouter()
 
 DATA_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "dataset", "processed"
 )
+# Fixed: this used to point at a nonexistent "models" folder (missing the
+# "ml" segment), which silently made topFeatures always come back empty.
 MODELS_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "models"
+    os.path.dirname(__file__), "..", "..", "ml", "models"
 )
 
 ASSET_MAP = {
@@ -86,6 +88,17 @@ def calculate_ma7_fallback(coin: str, data_dir: str, mult: float) -> float:
     diff_pct = (ma7 - current) / current
     return float(diff_pct * mult * 0.5)
 
+def get_lstm_sequence(coin: str, data_dir: str, seq_len: int) -> np.ndarray:
+    """
+    Build the raw (unnormalized) feature sequence for LSTM inference,
+    matching exactly what scaler_lstm_X was fit on (the same 13-column
+    FEATURES set used by the XGBoost scaler — confirmed via
+    scaler_lstm_X.feature_names_in_).
+    """
+    df_seq = pd.read_csv(os.path.join(data_dir, f"{coin}_processed.csv"))
+    df_seq = df_seq.sort_values("timestamp").dropna()
+    return df_seq[FEATURES].values[-seq_len:]
+
 @router.post("/v1/predict")
 async def predict(req: PredictRequest):
     logs = [{"tag": "SYSTEM", "text": f"Prediction pipeline initialized for {req.asset} ({req.period})..."}]
@@ -127,19 +140,24 @@ async def predict(req: PredictRequest):
     pred_return = 0.0
     actual_algo_used = algo
 
-    X_norm = np.array([[features[f] for f in FEATURE_COLS]])
+    # Fixed: was built from FEATURE_COLS (9 normalized columns), but every
+    # scaler (scaler_xgboost, scaler_lstm_X) was actually trained on the
+    # 13 raw FEATURES columns — confirmed directly via
+    # scaler.feature_names_in_. Feeding 9 values into a scaler expecting
+    # 13 raised a shape-mismatch error on every single prediction.
+    X_raw = np.array([[features[f] for f in FEATURES]])
 
     # 3. Model Inference with Self-Healing Fallbacks
     try:
         # --- XGBoost ---
         if algo == "xgboost":
             if "xgboost" in models and "scaler_xgboost" in models:
-                X_scaled = models["scaler_xgboost"].transform(X_norm)
+                X_scaled = models["scaler_xgboost"].transform(X_raw)
                 pred_return = float(models["xgboost"].predict(X_scaled)[0]) * mult
                 logs.append({"tag": "MODEL", "text": "XGBoost gradient boosting inference complete."})
             elif "random_forest" in models and "scaler_random_forest" in models:
                 # Fallback to Random Forest (Failure Scenario 2)
-                X_scaled = models["scaler_random_forest"].transform(X_norm)
+                X_scaled = models["scaler_random_forest"].transform(X_raw)
                 pred_return = float(models["random_forest"].predict(X_scaled)[0]) * mult
                 actual_algo_used = "random_forest"
                 pipeline_health = "FALLBACK"
@@ -156,9 +174,9 @@ async def predict(req: PredictRequest):
             lstm_loaded = "lstm" in models and "scaler_lstm_X" in models
             if lstm_loaded:
                 try:
-                    seq_matrix = get_sequence_features(coin, DATA_DIR, SEQ_LEN)
+                    seq_matrix = get_lstm_sequence(coin, DATA_DIR, SEQ_LEN)
                     seq_scaled = models["scaler_lstm_X"].transform(seq_matrix)
-                    X_seq = seq_scaled.reshape(1, SEQ_LEN, len(FEATURE_COLS))
+                    X_seq = seq_scaled.reshape(1, SEQ_LEN, len(FEATURES))
                     pred_return = float(models["lstm"].predict(X_seq, verbose=0)[0][0]) * mult
                     logs.append({"tag": "MODEL", "text": "LSTM Recurrent Neural Network inference complete."})
                 except Exception as ex:
@@ -167,7 +185,7 @@ async def predict(req: PredictRequest):
 
             if not lstm_loaded:
                 if "xgboost" in models and "scaler_xgboost" in models:
-                    X_scaled = models["scaler_xgboost"].transform(X_norm)
+                    X_scaled = models["scaler_xgboost"].transform(X_raw)
                     pred_return = float(models["xgboost"].predict(X_scaled)[0]) * mult
                     actual_algo_used = "xgboost"
                     pipeline_health = "FALLBACK"
@@ -206,20 +224,20 @@ async def predict(req: PredictRequest):
 
             # 1. XGBoost component
             if "xgboost" in models and "scaler_xgboost" in models:
-                X_xgb = models["scaler_xgboost"].transform(X_norm)
+                X_xgb = models["scaler_xgboost"].transform(X_raw)
                 p_xgb = float(models["xgboost"].predict(X_xgb)[0])
                 parts_healthy += 1
             elif "random_forest" in models and "scaler_random_forest" in models:
-                X_rf = models["scaler_random_forest"].transform(X_norm)
+                X_rf = models["scaler_random_forest"].transform(X_raw)
                 p_xgb = float(models["random_forest"].predict(X_rf)[0])
                 parts_healthy += 1
 
             # 2. LSTM component
             if "lstm" in models and "scaler_lstm_X" in models:
                 try:
-                    seq_matrix = get_sequence_features(coin, DATA_DIR, SEQ_LEN)
+                    seq_matrix = get_lstm_sequence(coin, DATA_DIR, SEQ_LEN)
                     seq_scaled = models["scaler_lstm_X"].transform(seq_matrix)
-                    X_seq = seq_scaled.reshape(1, SEQ_LEN, len(FEATURE_COLS))
+                    X_seq = seq_scaled.reshape(1, SEQ_LEN, len(FEATURES))
                     p_lstm = float(models["lstm"].predict(X_seq, verbose=0)[0][0])
                     parts_healthy += 1
                 except Exception:
@@ -264,7 +282,7 @@ async def predict(req: PredictRequest):
     pred_price = current_price * (1.0 + pred_return)
     change_pct = pred_return * 100.0
     pnl = pred_price - current_price
-    
+
     confidence = round(min(98.5, max(75.0, 92.0 + abs(pred_return) * 20.0 + float(np.random.uniform(-1.0, 1.0)))), 1)
     band_pct = max(0.015, min(0.06, abs(pred_return) * 2 + 0.02))
     lower = pred_price * (1.0 - band_pct)
@@ -283,7 +301,12 @@ async def predict(req: PredictRequest):
                 "norm_volatility": "7-Day Volatility",
                 "norm_ma7":        "7-Day Moving Avg",
                 "norm_ma30":       "30-Day Moving Avg",
-                "norm_hl_range":   "High-Low Range"
+                "norm_hl_range":   "High-Low Range",
+                "MA7":             "7-Day Moving Avg",
+                "MA30":            "30-Day Moving Avg",
+                "prev_close":      "Previous Close",
+                "volatility_7":    "7-Day Volatility",
+                "high_low_range":  "High-Low Range"
             }
             top_features = [
                 {"name": labels.get(r["feature"], r["feature"]), "weight": round(float(r["importance"]) * 100, 1)}

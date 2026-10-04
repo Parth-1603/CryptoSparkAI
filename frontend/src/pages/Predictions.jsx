@@ -71,6 +71,16 @@ export default function Predictions() {
     FALLBACK: { label: 'AUTO-HEALED FALLBACK', dotColor: 'bg-orange-400', badgeClass: 'bg-orange-500/10 text-orange-600 border border-orange-500/30' },
   }[health] || { label: 'PIPELINE ACTIVE', dotColor: 'bg-primary', badgeClass: 'bg-primary/10 text-primary border border-primary/30' };
 
+  // Compute where the dashed forecast line ends on the SVG based on the
+  // real predicted vs current price. SVG y=200 is the "current price"
+  // baseline. Smaller y = higher on chart = higher price.
+  // Scale x15 so even small % moves are visible; clamped to stay inside
+  // the 0-300 viewBox so the line never flies off-screen.
+  const changePct = result && result.currentPrice
+    ? ((result.price - result.currentPrice) / result.currentPrice) * 100
+    : 0;
+  const forecastEndY = Math.max(30, Math.min(270, 200 - changePct * 15));
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -283,18 +293,119 @@ export default function Predictions() {
             </div>
 
             <div className={`h-60 relative transition-all duration-500 ${isSimulating ? 'opacity-40 blur-sm' : 'opacity-100'}`}>
-              <svg className="w-full h-full" viewBox="0 0 1000 300">
+              {/* key = predicted price so every new result restarts all SMIL animations */}
+              <svg key={`fc-${result?.price ?? 'idle'}`} className="w-full h-full" viewBox="0 0 1000 300">
                 <defs>
+                  {/* Existing gradient — unchanged */}
                   <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#A2E037" stopOpacity="0.15" />
                     <stop offset="100%" stopColor="#A2E037" stopOpacity="0" />
                   </linearGradient>
+
+                  {/* Glow for the forecast dash */}
+                  <filter id="fcGlow" x="-20%" y="-80%" width="140%" height="260%">
+                    <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur" />
+                    <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+                  </filter>
+
+                  {/* clipPath that expands left→right to reveal the historical line */}
+                  <clipPath id="histClip">
+                    <rect x="0" y="0" width="0" height="300">
+                      <animate attributeName="width" from="0" to="620" dur="1.2s"
+                        begin="0.05s" fill="freeze"
+                        calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.2 1" />
+                    </rect>
+                  </clipPath>
+
+                  {/* clipPath that expands left→right to reveal the forecast line, delayed */}
+                  <clipPath id="fcClip">
+                    <rect x="600" y="0" width="0" height="300">
+                      <animate attributeName="width" from="0" to="420" dur="0.9s"
+                        begin="1.35s" fill="freeze"
+                        calcMode="spline" keyTimes="0;1" keySplines="0.4 0 0.2 1" />
+                    </rect>
+                  </clipPath>
                 </defs>
-                <path d="M 0,220 Q 150,180 300,200 Q 450,220 600,180 L 1000,100 L 1000,280 L 600,240 Q 450,260 300,240 Q 150,220 0,260 Z" fill="url(#forecastGrad)" />
-                <path className="chart-line" d="M 0,240 Q 150,200 300,220 Q 450,240 600,200" fill="none" stroke="#2c6e59" strokeWidth="2.5" strokeLinecap="round" />
-                <path d="M 600,200 L 1000,120" fill="none" stroke="#a2e037" strokeDasharray="8,5" strokeWidth="2.5" strokeLinecap="round" />
-                <circle cx="600" cy="200" r="5" fill="#fff" stroke="#2c6e59" strokeWidth="2.5" />
-                <text x="570" y="178" fill="#2c6e59" fontSize="11" fontWeight="700" fontFamily="Plus Jakarta Sans">CURRENT</text>
+
+                {/* Faint grid lines — stagger-fade in */}
+                {[75, 150, 225].map((y, i) => (
+                  <line key={y} x1="0" y1={y} x2="1000" y2={y}
+                    stroke="#2c6e59" strokeOpacity="0" strokeDasharray="5 8" strokeWidth="0.7">
+                    <animate attributeName="strokeOpacity" from="0" to="0.18"
+                      dur="0.5s" begin={`${0.15 + i * 0.12}s`} fill="freeze" />
+                  </line>
+                ))}
+
+                {/* Fill area — fades in after forecast line starts appearing */}
+                <path
+                  d={`M 0,220 Q 150,180 300,200 Q 450,220 600,200 L 1000,${forecastEndY} L 1000,280 L 600,240 Q 450,260 300,240 Q 150,220 0,260 Z`}
+                  fill="url(#forecastGrad)" opacity="0">
+                  <animate attributeName="opacity" from="0" to="1"
+                    dur="0.7s" begin="1.35s" fill="freeze" />
+                </path>
+
+                {/* Historical line — draws left to right via clipPath */}
+                <path
+                  id="histPath"
+                  className="chart-line"
+                  d="M 0,240 Q 150,200 300,220 Q 450,240 600,200"
+                  fill="none" stroke="#2c6e59" strokeWidth="2.5" strokeLinecap="round"
+                  clipPath="url(#histClip)" />
+
+                {/* Glowing traveler dot that runs along the historical line */}
+                <circle r="5" fill="#2c6e59" opacity="0"
+                  filter="url(#fcGlow)">
+                  <animate attributeName="opacity"
+                    values="0;1;1;0" keyTimes="0;0.05;0.88;1"
+                    dur="1.2s" begin="0.05s" fill="freeze" />
+                  <animateMotion dur="1.2s" begin="0.05s" fill="freeze" rotate="auto">
+                    <mpath href="#histPath" />
+                  </animateMotion>
+                </circle>
+
+                {/* Forecast dashed line — reveals after historical, with glow */}
+                <path
+                  d={`M 600,200 L 1000,${forecastEndY}`}
+                  fill="none"
+                  stroke={changePct >= 0 ? '#a2e037' : '#e63946'}
+                  strokeDasharray="8,5"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  filter="url(#fcGlow)"
+                  clipPath="url(#fcClip)" />
+
+                {/* Junction dot — pops in at the handoff point */}
+                <circle cx="600" cy="200" r="5" fill="#fff" stroke="#2c6e59" strokeWidth="2.5" opacity="0">
+                  <animate attributeName="opacity" from="0" to="1"
+                    dur="0.25s" begin="1.2s" fill="freeze" />
+                </circle>
+
+                {/* Pulsing ring that radiates from the junction forever */}
+                <circle cx="600" cy="200" fill="none" stroke="#2c6e59" strokeWidth="1.5" r="5" opacity="0">
+                  <animate attributeName="r" values="5;28" dur="1.6s"
+                    begin="1.2s" repeatCount="indefinite"
+                    calcMode="spline" keyTimes="0;1" keySplines="0.3 0.7 0.5 1" />
+                  <animate attributeName="opacity" values="0.7;0" dur="1.6s"
+                    begin="1.2s" repeatCount="indefinite" />
+                </circle>
+                {/* Second, faster ring for depth */}
+                <circle cx="600" cy="200" fill="none"
+                  stroke={changePct >= 0 ? '#a2e037' : '#e63946'}
+                  strokeWidth="1" r="5" opacity="0">
+                  <animate attributeName="r" values="5;18" dur="1s"
+                    begin="1.5s" repeatCount="indefinite"
+                    calcMode="spline" keyTimes="0;1" keySplines="0.3 0.7 0.5 1" />
+                  <animate attributeName="opacity" values="0.6;0" dur="1s"
+                    begin="1.5s" repeatCount="indefinite" />
+                </circle>
+
+                {/* CURRENT label — fades in with the junction dot */}
+                <text x="570" y="178" fill="#2c6e59" fontSize="11"
+                  fontWeight="700" fontFamily="Plus Jakarta Sans" opacity="0">
+                  CURRENT
+                  <animate attributeName="opacity" from="0" to="1"
+                    dur="0.3s" begin="1.1s" fill="freeze" />
+                </text>
               </svg>
             </div>
 

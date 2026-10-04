@@ -1,7 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '../components/shared/GlassCard';
+import { api } from '../services/api';
 
 export default function Infrastructure() {
+  const [status, setStatus] = useState(null);
+  const [logs, setLogs] = useState([]);
+
+  useEffect(() => {
+    // NOTE: these must match the exact names exported from api.js —
+    // getInfrastructureStatus / getInfrastructureLogs, not
+    // getInfraStatus / getInfraLogs.
+    api.getInfrastructureStatus().then(setStatus).catch(console.error);
+    api.getInfrastructureLogs().then(setLogs).catch(console.error);
+  }, []);
+
+  const health = status?.health || {};
+
   return (
     <div className="space-y-8">
       {/* Infrastructure Overview Cards */}
@@ -15,7 +29,9 @@ export default function Infrastructure() {
           </div>
           <div className="mt-4">
             <p className="text-on-surface-variant font-label-md text-xs">Total Records Processed</p>
-            <h3 className="text-headline-md font-headline-md font-bold text-charcoal mt-1 font-mono">14,284,912</h3>
+            <h3 className="text-headline-md font-headline-md font-bold text-charcoal mt-1 font-mono">
+              {status?.totalRecordsProcessed || '...'}
+            </h3>
           </div>
         </GlassCard>
 
@@ -26,18 +42,22 @@ export default function Infrastructure() {
           </div>
           <div className="mt-4">
             <p className="text-on-surface-variant font-label-md text-xs">Avg Processing Latency</p>
-            <h3 className="text-headline-md font-headline-md font-bold text-on-surface mt-1 font-mono">1.42s</h3>
+            <h3 className="text-headline-md font-headline-md font-bold text-on-surface mt-1 font-mono">
+              {status?.avgLatency || '...'}
+            </h3>
           </div>
         </GlassCard>
 
         <GlassCard className="p-5 rounded-xl flex flex-col justify-between">
           <div className="flex justify-between items-start">
             <span className="material-symbols-outlined text-primary text-3xl">memory</span>
-            <span className="text-primary text-xs font-bold">EMR m5.2xlarge</span>
+            <span className="text-primary text-xs font-bold">EMR m5.large</span>
           </div>
           <div className="mt-4">
             <p className="text-on-surface-variant font-label-md text-xs">Active Compute Nodes</p>
-            <h3 className="text-headline-md font-headline-md font-bold text-on-surface mt-1 font-mono">12 Nodes</h3>
+            <h3 className="text-headline-md font-headline-md font-bold text-on-surface mt-1 font-mono">
+              {status?.activeNodes || '...'}
+            </h3>
           </div>
         </GlassCard>
 
@@ -48,12 +68,14 @@ export default function Infrastructure() {
           </div>
           <div className="mt-4">
             <p className="text-on-surface-variant font-label-md text-xs">S3 Throughput</p>
-            <h3 className="text-headline-md font-headline-md font-bold text-on-surface mt-1 font-mono">3.82 GB/s</h3>
+            <h3 className="text-headline-md font-headline-md font-bold text-on-surface mt-1 font-mono">
+              {status?.s3Throughput || '...'}
+            </h3>
           </div>
         </GlassCard>
       </div>
 
-      {/* Architecture Flow Map */}
+      {/* Architecture Flow Map — static diagram, not data-driven */}
       <GlassCard className="rounded-xl p-8 overflow-hidden relative min-h-[380px] flex flex-col justify-center">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
           <div className="flex flex-col items-center gap-3">
@@ -121,7 +143,7 @@ export default function Infrastructure() {
 
         <div className="mt-10 flex justify-center gap-8 text-on-surface-variant font-label-md text-xs">
           <div className="flex items-center gap-2"><span className="w-3 h-3 bg-primary rounded-full"></span>Data Stream</div>
-          <div className="flex items-center gap-2"><span class="w-3 h-3 bg-lime rounded-full"></span>Compute Path</div>
+          <div className="flex items-center gap-2"><span className="w-3 h-3 bg-lime rounded-full"></span>Compute Path</div>
           <div className="flex items-center gap-2"><span className="w-3 h-3 bg-tertiary-fixed-dim rounded-full"></span>Inference Output</div>
         </div>
       </GlassCard>
@@ -137,10 +159,10 @@ export default function Infrastructure() {
             <div className="flex-1">
               <div className="flex justify-between items-center text-sm font-bold">
                 <span>Amazon S3</span>
-                <span className="text-primary text-xs">HEALTHY</span>
+                <span className="text-primary text-xs">{health.s3?.status || '...'}</span>
               </div>
               <div className="w-full bg-surface-container-low h-1.5 rounded-full mt-2 overflow-hidden">
-                <div className="bg-primary w-[92%] h-full"></div>
+                <div className="bg-primary h-full" style={{ width: `${health.s3?.load ?? 0}%` }}></div>
               </div>
             </div>
           </GlassCard>
@@ -152,10 +174,10 @@ export default function Infrastructure() {
             <div className="flex-1">
               <div className="flex justify-between items-center text-sm font-bold">
                 <span>EMR Cluster</span>
-                <span className="text-primary text-xs">ACTIVE</span>
+                <span className="text-primary text-xs">{health.emr?.status || '...'}</span>
               </div>
               <div className="w-full bg-surface-container-low h-1.5 rounded-full mt-2 overflow-hidden">
-                <div className="bg-primary w-[78%] h-full"></div>
+                <div className="bg-primary h-full" style={{ width: `${health.emr?.load ?? 0}%` }}></div>
               </div>
             </div>
           </GlassCard>
@@ -167,16 +189,16 @@ export default function Infrastructure() {
             <div className="flex-1">
               <div className="flex justify-between items-center text-sm font-bold">
                 <span>EC2 Instances</span>
-                <span className="text-primary text-xs">SCALING</span>
+                <span className="text-primary text-xs">{health.ec2?.status || '...'}</span>
               </div>
               <div className="w-full bg-surface-container-low h-1.5 rounded-full mt-2 overflow-hidden">
-                <div className="bg-primary w-[65%] h-full"></div>
+                <div className="bg-primary h-full" style={{ width: `${health.ec2?.load ?? 0}%` }}></div>
               </div>
             </div>
           </GlassCard>
         </div>
 
-        {/* Prediction Verification Stream Table */}
+        {/* Prediction Verification Stream Table — now driven by the live logs array */}
         <div className="xl:col-span-2 space-y-4">
           <div className="flex justify-between items-end">
             <div>
@@ -201,39 +223,26 @@ export default function Infrastructure() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant font-mono">
-                  <tr className="hover:bg-surface-container-low transition-colors">
-                    <td className="px-5 py-3 font-bold text-on-surface">TXN-4829</td>
-                    <td className="px-5 py-3 text-cool-grey">14:02:21.092</td>
-                    <td className="px-5 py-3"><span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary"></span>BTC/USD</span></td>
-                    <td className="px-5 py-3"><span className="text-primary font-bold">$64,281.40</span> / <span className="text-cool-grey">$64,279.12</span></td>
-                    <td className="px-5 py-3 text-primary font-bold">0.0035%</td>
-                  </tr>
-                  <tr className="hover:bg-surface-container-low transition-colors">
-                    <td className="px-5 py-3 font-bold text-on-surface">TXN-4830</td>
-                    <td className="px-5 py-3 text-cool-grey">14:02:22.411</td>
-                    <td className="px-5 py-3"><span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-lime"></span>ETH/USD</span></td>
-                    <td className="px-5 py-3"><span className="text-primary font-bold">$3,452.12</span> / <span className="text-cool-grey">$3,450.01</span></td>
-                    <td className="px-5 py-3 text-primary font-bold">0.0611%</td>
-                  </tr>
-                  <tr className="hover:bg-surface-container-low transition-colors">
-                    <td className="px-5 py-3 font-bold text-on-surface">TXN-4831</td>
-                    <td className="px-5 py-3 text-cool-grey">14:02:23.882</td>
-                    <td className="px-5 py-3"><span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary"></span>SOL/USD</span></td>
-                    <td className="px-5 py-3"><span className="text-primary font-bold">$142.10</span> / <span className="text-cool-grey">$141.92</span></td>
-                    <td className="px-5 py-3 text-primary font-bold">0.1260%</td>
-                  </tr>
-                  <tr className="hover:bg-surface-container-low transition-colors">
-                    <td className="px-5 py-3 font-bold text-on-surface">TXN-4832</td>
-                    <td className="px-5 py-3 text-cool-grey">14:02:25.102</td>
-                    <td className="px-5 py-3"><span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-primary"></span>BTC/USD</span></td>
-                    <td className="px-5 py-3"><span className="text-primary font-bold">$64,301.12</span> / <span className="text-cool-grey">$64,305.44</span></td>
-                    <td className="px-5 py-3 text-error font-bold">0.0067%</td>
-                  </tr>
+                  {logs.map(row => (
+                    <tr key={row.id} className="hover:bg-surface-container-low transition-colors">
+                      <td className="px-5 py-3 font-bold text-on-surface">{row.id}</td>
+                      <td className="px-5 py-3 text-cool-grey">{row.timestamp}</td>
+                      <td className="px-5 py-3">
+                        <span className="flex items-center gap-1.5">
+                          <span className="w-2 h-2 rounded-full bg-primary"></span>{row.asset}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className="text-primary font-bold">{row.predicted}</span> / <span className="text-cool-grey">{row.actual}</span>
+                      </td>
+                      <td className="px-5 py-3 text-primary font-bold">{row.errorPct}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
             <div className="bg-surface-container-low px-5 py-3 border-t border-outline-variant flex justify-between items-center text-xs text-cool-grey">
-              <span>Showing 4 of 14M+ Records</span>
+              <span>Showing {logs.length} of {status?.totalRecordsProcessed || '...'} Records</span>
               <div className="flex gap-2">
                 <button className="w-7 h-7 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-variant"><span className="material-symbols-outlined text-xs">chevron_left</span></button>
                 <button className="w-7 h-7 flex items-center justify-center rounded border border-outline-variant hover:bg-surface-variant"><span className="material-symbols-outlined text-xs">chevron_right</span></button>
