@@ -469,3 +469,18 @@ input:focus, select:focus, textarea:focus {
   transition: transform 0.12s ease, box-shadow 0.2s ease;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   PAGE LOADING PROGRESS BAR
+═══════════════════════════════════════════════════════════ */
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(20%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+

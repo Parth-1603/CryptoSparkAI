@@ -1,17 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import GlassCard from '../components/shared/GlassCard';
+import { SkeletonCard } from '../components/shared/LoadingState';
 import { api } from '../services/api';
 
 export default function Infrastructure() {
   const [status, setStatus] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // NOTE: these must match the exact names exported from api.js —
-    // getInfrastructureStatus / getInfrastructureLogs, not
-    // getInfraStatus / getInfraLogs.
-    api.getInfrastructureStatus().then(setStatus).catch(console.error);
-    api.getInfrastructureLogs().then(setLogs).catch(console.error);
+    let mounted = true;
+    Promise.allSettled([
+      api.getInfrastructureStatus(),
+      api.getInfrastructureLogs(),
+    ]).then(([statusRes, logsRes]) => {
+      if (!mounted) return;
+      if (statusRes.status === 'fulfilled') setStatus(statusRes.value);
+      if (logsRes.status === 'fulfilled') setLogs(logsRes.value);
+      setLoading(false);
+    });
+    return () => { mounted = false; };
   }, []);
 
   const health = status?.health || {};
@@ -19,21 +27,27 @@ export default function Infrastructure() {
   return (
     <div className="space-y-8">
       {/* Infrastructure Overview Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <GlassCard className="p-5 rounded-xl flex flex-col justify-between">
-          <div className="flex justify-between items-start">
-            <span className="material-symbols-outlined text-primary text-3xl">storage</span>
-            <span className="text-tertiary font-label-sm text-xs font-bold flex items-center gap-1">
-              <span className="material-symbols-outlined text-xs">trending_up</span> 4.2%
-            </span>
-          </div>
-          <div className="mt-4">
-            <p className="text-on-surface-variant font-label-md text-xs">Total Records Processed</p>
-            <h3 className="text-headline-md font-headline-md font-bold text-charcoal mt-1 font-mono">
-              {status?.totalRecordsProcessed || '...'}
-            </h3>
-          </div>
-        </GlassCard>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {loading && !status ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={i} height="h-32" />
+          ))
+        ) : (
+          <>
+            <GlassCard className="p-5 rounded-xl flex flex-col justify-between">
+              <div className="flex justify-between items-start">
+                <span className="material-symbols-outlined text-primary text-3xl">storage</span>
+                <span className="text-tertiary font-label-sm text-xs font-bold flex items-center gap-1">
+                  <span className="material-symbols-outlined text-xs">trending_up</span> 4.2%
+                </span>
+              </div>
+              <div className="mt-4">
+                <p className="text-on-surface-variant font-label-md text-xs">Total Records Processed</p>
+                <h3 className="text-headline-md font-headline-md font-bold text-charcoal mt-1 font-mono">
+                  {status?.totalRecordsProcessed || '...'}
+                </h3>
+              </div>
+            </GlassCard>
 
         <GlassCard className="p-5 rounded-xl flex flex-col justify-between">
           <div className="flex justify-between items-start">
@@ -72,8 +86,10 @@ export default function Infrastructure() {
               {status?.s3Throughput || '...'}
             </h3>
           </div>
-        </GlassCard>
-      </div>
+          </GlassCard>
+        </>
+      )}
+    </div>
 
       {/* Architecture Flow Map — static diagram, not data-driven */}
       <GlassCard className="rounded-xl p-8 overflow-hidden relative min-h-[380px] flex flex-col justify-center">
@@ -205,14 +221,14 @@ export default function Infrastructure() {
               <h4 className="font-title-lg text-title-lg text-on-surface">Prediction Logs</h4>
               <p className="text-on-surface-variant text-xs">Real-time inference verification stream</p>
             </div>
-            <button className="bg-surface border border-outline-variant px-3 py-1.5 rounded-lg text-xs font-bold text-on-surface hover:border-primary transition-all flex items-center gap-1.5">
+            <button className="bg-surface border border-outline-variant px-4 py-2 rounded-lg text-xs font-bold text-on-surface hover:border-primary transition-all flex items-center gap-1.5 min-h-[44px]">
               <span className="material-symbols-outlined text-sm">download</span> Export Logs
             </button>
           </div>
 
           <GlassCard className="rounded-xl overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+              <table className="w-full min-w-[540px] text-left text-xs">
                 <thead className="bg-surface-container-low border-b border-outline-variant uppercase text-cool-grey font-bold">
                   <tr>
                     <th className="px-5 py-3">ID</th>

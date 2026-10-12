@@ -1,17 +1,69 @@
 import React, { useState, useEffect } from 'react';
 import KPICard from '../components/shared/KPICard';
 import GlassCard from '../components/shared/GlassCard';
+import { SkeletonCard } from '../components/shared/LoadingState';
 import { api } from '../services/api';
+
+const TIMEFRAMES = {
+  '1D': {
+    subtext: 'Intraday neural overlay · Real-time 2s cadence',
+    predOffset: 'top-8 right-16',
+    predPrice: (kpis) => kpis?.btcUsd?.value || '$69,200',
+    change: '+2.45%',
+    fillPath: 'M0 350 Q 150 320 250 280 T 500 240 T 750 120 T 1000 80 V 400 H 0 Z',
+    linePath: 'M0 350 Q 150 320 250 280 T 500 240 T 750 120 T 1000 80',
+    xLabels: ['00:00', '06:00', '12:00', '18:00', 'Now (+1D Pred)'],
+  },
+  '1W': {
+    subtext: '7-day momentum trajectory · 4-hour aggregations',
+    predOffset: 'top-10 right-20',
+    predPrice: () => '$71,450',
+    change: '+6.18%',
+    fillPath: 'M0 320 Q 200 370 380 280 T 620 210 T 820 140 T 1000 95 V 400 H 0 Z',
+    linePath: 'M0 320 Q 200 370 380 280 T 620 210 T 820 140 T 1000 95',
+    xLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun (+1W Pred)'],
+  },
+  '1M': {
+    subtext: '30-day macro cycle projection · Daily aggregates',
+    predOffset: 'top-6 right-14',
+    predPrice: () => '$74,800',
+    change: '+11.35%',
+    fillPath: 'M0 360 Q 240 300 460 320 T 700 170 T 880 110 T 1000 60 V 400 H 0 Z',
+    linePath: 'M0 360 Q 240 300 460 320 T 700 170 T 880 110 T 1000 60',
+    xLabels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Next Month Target'],
+  },
+  '1Y': {
+    subtext: '52-week regression corridor · Weekly bars',
+    predOffset: 'top-12 right-24',
+    predPrice: () => '$88,500',
+    change: '+32.80%',
+    fillPath: 'M0 380 Q 250 340 420 260 T 650 220 T 850 140 T 1000 110 V 400 H 0 Z',
+    linePath: 'M0 380 Q 250 340 420 260 T 650 220 T 850 140 T 1000 110',
+    xLabels: ['Q1', 'Q2', 'Q3', 'Q4', '1-Year Target'],
+  },
+};
 
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [signals, setSignals] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [timeframe, setTimeframe] = useState('1D');
 
   useEffect(() => {
-    api.getMarketSummary().then(setSummary).catch(console.error);
-    api.getWatchlist().then(setWatchlist).catch(console.error);
-    api.getSignals().then(setSignals).catch(console.error);
+    let mounted = true;
+    Promise.allSettled([
+      api.getMarketSummary(),
+      api.getWatchlist(),
+      api.getSignals(),
+    ]).then(([sumRes, watchRes, sigRes]) => {
+      if (!mounted) return;
+      if (sumRes.status === 'fulfilled') setSummary(sumRes.value);
+      if (watchRes.status === 'fulfilled') setWatchlist(watchRes.value);
+      if (sigRes.status === 'fulfilled') setSignals(sigRes.value);
+      setLoading(false);
+    });
+    return () => { mounted = false; };
   }, []);
 
   const kpis = summary?.kpis;
@@ -56,41 +108,49 @@ export default function Dashboard() {
     },
   ];
 
+  const currentTf = TIMEFRAMES[timeframe] || TIMEFRAMES['1D'];
+
   return (
     <div className="space-y-6">
       {/* KPI Row */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {kpiCards.map((card, i) => (
-          <div key={card.label} className="animate-fade-in-up" style={{ animationDelay: `${i * 60}ms` }}>
-            <KPICard {...card} />
-          </div>
-        ))}
-
-        {/* Active Model Card */}
-        <div className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>
-          <GlassCard className="p-4 rounded-lg flex flex-col justify-between h-full">
-            <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">ACTIVE MODEL</span>
-            <div className="mt-2">
-              <span className="font-title-md text-title-md font-bold tracking-wide text-charcoal">
-                {kpis?.activeModel?.name || '...'}
-              </span>
-              <div className="flex items-center gap-1 mt-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-mint-green animate-pulse"></span>
-                <span className="text-[9px] text-mint-green uppercase font-bold tracking-widest">
-                  {kpis?.activeModel?.status || 'Running'}
-                </span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+        {loading && !summary ? (
+          Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} height="h-24" />
+          ))
+        ) : (
+          <>
+            {kpiCards.map((card, i) => (
+              <div key={card.label} className="animate-fade-in-up" style={{ animationDelay: `${i * 50}ms` }}>
+                <KPICard {...card} />
               </div>
+            ))}
+
+            {/* Active Model Card */}
+            <div className="animate-fade-in-up" style={{ animationDelay: '250ms' }}>
+              <GlassCard className="p-4 rounded-lg flex flex-col justify-between h-full">
+                <span className="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">ACTIVE MODEL</span>
+                <div className="mt-2">
+                  <span className="font-title-md text-title-md font-bold tracking-wide text-charcoal">
+                    {kpis?.activeModel?.name || '...'}
+                  </span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-mint-green animate-pulse"></span>
+                    <span className="text-[9px] text-mint-green uppercase font-bold tracking-widest">
+                      {kpis?.activeModel?.status || 'Running'}
+                    </span>
+                  </div>
+                </div>
+              </GlassCard>
             </div>
-          </GlassCard>
-        </div>
+          </>
+        )}
       </div>
 
       {/* Main Grid */}
       <div className="grid grid-cols-12 gap-6">
         {/* Left: Chart + Tables */}
         <div className="col-span-12 lg:col-span-9 space-y-6">
-          {/* Price Trend Chart — kept as a visual placeholder; wiring this to
-              real historical data would use api.getHistorical('btc') */}
           <GlassCard className="p-6 rounded-xl">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
               <div>
@@ -99,13 +159,23 @@ export default function Dashboard() {
                   BTC/USD Price Trend
                 </h2>
                 <p className="text-xs text-on-surface-variant mt-0.5 font-mono">
-                  Neural network overlay applied · Updated 2s ago
+                  {currentTf.subtext}
                 </p>
               </div>
               <div className="flex bg-surface-container-low rounded-lg p-1 border border-outline-variant">
-                {['1D', '1W', '1M', '1Y'].map((t, i) => (
-                  <button key={t} className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all duration-200 ${i === 0 ? 'bg-primary text-white shadow-sm' : 'text-on-surface-variant hover:text-on-surface'
-                    }`}>{t}</button>
+                {['1D', '1W', '1M', '1Y'].map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setTimeframe(t)}
+                    className={`px-3 py-1 text-[11px] font-bold rounded-md transition-all duration-200 cursor-pointer ${
+                      timeframe === t
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container-high'
+                    }`}
+                  >
+                    {t}
+                  </button>
                 ))}
               </div>
             </div>
@@ -114,26 +184,48 @@ export default function Dashboard() {
               <svg className="w-full h-full" viewBox="0 0 1000 400" preserveAspectRatio="none">
                 <defs>
                   <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2C6E59" stopOpacity="0.15" />
+                    <stop offset="0%" stopColor="#2C6E59" stopOpacity="0.18" />
                     <stop offset="100%" stopColor="#2C6E59" stopOpacity="0" />
                   </linearGradient>
                 </defs>
-                {[100, 200, 300].map(y => (
+                {[100, 200, 300].map((y) => (
                   <line key={y} stroke="#e1e3e0" strokeDasharray="4,4" x1="0" x2="1000" y1={y} y2={y} />
                 ))}
-                <path d="M0 350 Q 150 320 250 280 T 500 240 T 750 120 T 1000 80 V 400 H 0 Z" fill="url(#chartGrad)" />
                 <path
-                  className="chart-line"
-                  d="M0 350 Q 150 320 250 280 T 500 240 T 750 120 T 1000 80"
-                  fill="none" stroke="#2C6E59" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+                  d={currentTf.fillPath}
+                  fill="url(#chartGrad)"
+                  className="transition-all duration-500 ease-in-out"
+                />
+                <path
+                  key={timeframe}
+                  className="chart-line transition-all duration-500 ease-in-out"
+                  d={currentTf.linePath}
+                  fill="none"
+                  stroke="#2C6E59"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 />
               </svg>
-              <div className="absolute top-8 right-16 flex flex-col items-end">
-                <div className="bg-primary text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-md font-mono">
-                  PRED: {kpis?.btcUsd?.value || '$69,200'}
+              <div className={`absolute ${currentTf.predOffset} flex flex-col items-end transition-all duration-300 pointer-events-none`}>
+                <div className="bg-primary text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-md font-mono flex items-center gap-1.5">
+                  <span>PRED: {currentTf.predPrice(kpis)}</span>
+                  <span className="text-lime text-[9px] bg-black/25 px-1 py-0.5 rounded font-bold">{currentTf.change}</span>
                 </div>
                 <div className="w-px h-12 bg-primary/30 mt-1 mx-auto"></div>
               </div>
+            </div>
+
+            {/* Timeframe X-Axis Markers */}
+            <div className="flex justify-between items-center text-[10px] font-mono text-on-surface-variant px-2 pt-3 border-t border-outline-variant/40 mt-1">
+              {currentTf.xLabels.map((lbl, idx) => (
+                <span
+                  key={idx}
+                  className={idx === currentTf.xLabels.length - 1 ? 'font-bold text-primary' : ''}
+                >
+                  {lbl}
+                </span>
+              ))}
             </div>
           </GlassCard>
 
@@ -196,7 +288,7 @@ export default function Dashboard() {
               </button>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full min-w-[540px] text-left">
                 <thead className="text-[11px] font-bold text-on-surface-variant uppercase bg-surface-container-low/60">
                   <tr>
                     <th className="px-6 py-3">Asset</th>
@@ -207,26 +299,43 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-outline-variant/50 text-sm">
-                  {watchlist.map(row => (
-                    <tr key={row.sym} className="hover:bg-surface-container-low/40 cursor-pointer transition-colors duration-150 group">
-                      <td className="px-6 py-3.5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white shadow-sm group-hover:scale-110 transition-transform duration-200"
-                            style={{ backgroundColor: row.color }}>
-                            {row.letter}
+                  {loading && watchlist.length === 0 ? (
+                    Array.from({ length: 4 }).map((_, i) => (
+                      <tr key={i} className="animate-pulse">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-primary/10" />
+                            <div className="h-4 w-20 bg-primary/10 rounded" />
                           </div>
-                          <div>
-                            <p className="font-bold text-on-surface">{row.name}</p>
-                            <p className="text-[10px] text-cool-grey font-mono">{row.sym}</p>
+                        </td>
+                        <td className="px-6 py-4 text-right"><div className="h-4 w-16 ml-auto bg-primary/10 rounded" /></td>
+                        <td className="px-6 py-4 text-right"><div className="h-4 w-12 ml-auto bg-primary/10 rounded" /></td>
+                        <td className="px-6 py-4 text-right"><div className="h-4 w-14 ml-auto bg-primary/10 rounded" /></td>
+                        <td className="px-6 py-4 text-right"><div className="h-4 w-14 ml-auto bg-primary/10 rounded" /></td>
+                      </tr>
+                    ))
+                  ) : (
+                    watchlist.map(row => (
+                      <tr key={row.sym} className="hover:bg-surface-container-low/40 cursor-pointer transition-colors duration-150 group">
+                        <td className="px-6 py-3.5">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs text-white shadow-sm group-hover:scale-110 transition-transform duration-200"
+                              style={{ backgroundColor: row.color }}>
+                              {row.letter}
+                            </div>
+                            <div>
+                              <p className="font-bold text-on-surface">{row.name}</p>
+                              <p className="text-[10px] text-cool-grey font-mono">{row.sym}</p>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-3.5 text-right font-mono font-semibold text-charcoal">{row.price}</td>
-                      <td className={`px-6 py-3.5 text-right font-bold font-mono ${row.pos ? 'text-mint-green' : 'text-error'}`}>{row.change}</td>
-                      <td className="px-6 py-3.5 text-right font-mono text-cool-grey text-xs">{row.vol}</td>
-                      <td className="px-6 py-3.5 text-right font-mono text-cool-grey text-xs">{row.cap}</td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="px-6 py-3.5 text-right font-mono font-semibold text-charcoal">{row.price}</td>
+                        <td className={`px-6 py-3.5 text-right font-bold font-mono ${row.pos ? 'text-mint-green' : 'text-error'}`}>{row.change}</td>
+                        <td className="px-6 py-3.5 text-right font-mono text-cool-grey text-xs">{row.vol}</td>
+                        <td className="px-6 py-3.5 text-right font-mono text-cool-grey text-xs">{row.cap}</td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>

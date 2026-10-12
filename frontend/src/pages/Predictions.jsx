@@ -43,8 +43,7 @@ export default function Predictions() {
           topFeatures: data.topFeatures,
         });
         setExplanation(explainRes.explanation);
-      } catch (explainErr) {
-        console.warn('Explainability call fallback:', explainErr);
+      } catch {
         setExplanation(`CryptoSpark AI predicted ${data.price?.toLocaleString()} for ${asset}. Key factors include moving averages and short-term volatility supporting a ${data.signal} signal with ${data.confidence}% confidence.`);
       } finally {
         setIsExplaining(false);
@@ -126,7 +125,7 @@ export default function Predictions() {
                   <button
                     key={p}
                     onClick={() => setPeriod(p)}
-                    className={`py-2 rounded-lg text-xs font-bold transition-all duration-200 ${period === p
+                    className={`min-h-[44px] py-2 px-3 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center ${period === p
                         ? 'bg-primary text-white shadow-sm scale-[1.02]'
                         : 'bg-surface-container-low border border-outline-variant text-on-surface-variant hover:border-primary hover:text-primary'
                       }`}
@@ -191,7 +190,7 @@ export default function Predictions() {
         {/* Output Panel */}
         <div className="xl:col-span-8 space-y-5">
           {/* Metric Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
             {isSimulating ? (
               [1, 2, 3, 4].map(i => (
                 <GlassCard key={i} className="p-5 h-24 space-y-3">

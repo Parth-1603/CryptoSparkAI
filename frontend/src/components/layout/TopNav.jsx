@@ -18,6 +18,7 @@ function ThemeToggle() {
 
 export default function TopNav({ onMenuToggle }) {
   const location = useLocation();
+  const { isDark } = useTheme();
 
   const getPageTitle = () => {
     switch (location.pathname) {
@@ -30,96 +31,94 @@ export default function TopNav({ onMenuToggle }) {
     }
   };
 
-  const quickLinks = [
+  const navLinks = [
     { to: '/dashboard', label: 'Dashboard' },
     { to: '/predictions', label: 'Predictions' },
+    { to: '/model-metrics', label: 'Metrics' },
     { to: '/infrastructure', label: 'Pipeline' },
+    { to: '/about', label: 'About' },
   ];
 
   return (
-    <header
-      className="sticky top-0 z-40 w-full flex items-center justify-between px-5 py-3 backdrop-blur-md border-b"
-      style={{
-        background: 'rgba(var(--surface-rgb, 255,255,255), 0.88)',
-        backgroundColor: 'var(--surface)',
-        borderColor: 'var(--border)',
-        boxShadow: '0 1px 12px rgba(0,0,0,0.05)',
-      }}
-    >
-      {/* Left */}
-      <div className="flex items-center gap-4">
-        <button
-          onClick={onMenuToggle}
-          className="lg:hidden p-2 rounded-lg transition-all duration-200 hover:bg-surface-container active:scale-95"
-          style={{ color: 'var(--primary)' }}
-          aria-label="Toggle menu"
-        >
-          <span className="material-symbols-outlined">menu</span>
-        </button>
+    <header className="sticky top-0 z-40 w-full px-3 sm:px-6 py-2.5 transition-colors duration-200">
+      <div
+        className="w-full max-w-[1600px] mx-auto rounded-full px-2.5 sm:px-4 py-1.5 sm:py-2 flex items-center justify-between transition-all duration-300 backdrop-blur-xl"
+        style={{
+          background: isDark ? 'rgba(12, 16, 14, 0.72)' : 'rgba(255, 255, 255, 0.75)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          color: isDark ? '#ffffff' : '#000000',
+          border: isDark ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.6)',
+          boxShadow: isDark
+            ? '0 12px 36px -8px rgba(0,0,0,0.7), inset 0 1px 1px rgba(255,255,255,0.18)'
+            : '0 12px 36px -8px rgba(0,0,0,0.06), inset 0 1px 2px rgba(255,255,255,0.95)',
+        }}
+      >
+        {/* Left: Mobile Toggle & Circular Badge & Section Title */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={onMenuToggle}
+            className="lg:hidden w-9 h-9 rounded-full flex items-center justify-center transition-colors"
+            style={{
+              background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+              color: isDark ? '#ffffff' : '#000000',
+            }}
+            aria-label="Open navigation menu"
+          >
+            <span className="material-symbols-outlined text-xl">menu</span>
+          </button>
 
-        <div>
-          <h2 className="font-bold text-sm" style={{ color: 'var(--text)' }}>
+          <Link
+            to="/"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 transition-transform hover:scale-105"
+            style={{
+              background: isDark ? '#ffffff' : '#000000',
+              color: isDark ? '#000000' : '#ffffff',
+            }}
+            title="Home"
+          >
+            CS
+          </Link>
+
+          <h2 className="font-extrabold text-xs sm:text-sm tracking-tight truncate max-w-[130px] sm:max-w-none">
             {getPageTitle()}
           </h2>
         </div>
 
-        <div className="hidden md:flex items-center gap-0.5 border-l pl-5 ml-1" style={{ borderColor: 'var(--border)' }}>
-          {quickLinks.map(link => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={`relative px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200 ${
-                location.pathname === link.to
-                  ? 'text-primary bg-primary/8'
-                  : 'hover:bg-surface-container'
-              }`}
-              style={{ color: location.pathname === link.to ? '#2C6E59' : 'var(--text-muted)' }}
-            >
-              {link.label}
-              {location.pathname === link.to && (
-                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-0.5 bg-primary rounded-full" />
-              )}
-            </Link>
-          ))}
-        </div>
-      </div>
+        {/* Center: Desktop Nav Links */}
+        <nav className="hidden xl:flex items-center gap-6 lg:gap-8 px-4">
+          {navLinks.map(link => {
+            const isActive = location.pathname === link.to;
+            return (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`text-xs font-semibold transition-opacity duration-200 ${
+                  isActive ? 'opacity-100 font-bold' : 'opacity-65 hover:opacity-100'
+                }`}
+                style={{
+                  color: isDark ? '#ffffff' : '#000000',
+                }}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
+        </nav>
 
-      {/* Right */}
-      <div className="flex items-center gap-2.5">
-        <div className="relative hidden sm:block w-48">
-          <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-sm pointer-events-none" style={{ color:'var(--text-muted)' }}>
-            search
-          </span>
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-full rounded-full pl-9 pr-4 py-1.5 text-xs border"
+        {/* Right: Theme Toggle & High-contrast Capsule Live Badge */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <ThemeToggle />
+          <div
+            className="rounded-full px-3 py-1.5 text-[10px] font-black tracking-widest flex items-center gap-1.5 shrink-0 shadow-sm"
             style={{
-              background:'var(--surface-low)',
-              borderColor:'var(--border)',
-              color:'var(--text)',
+              background: isDark ? '#ffffff' : '#000000',
+              color: isDark ? '#000000' : '#ffffff',
             }}
-          />
-        </div>
-
-        {/* Theme toggle */}
-        <ThemeToggle />
-
-        <div className="flex items-center gap-1">
-          {['notifications','settings'].map(icon => (
-            <button
-              key={icon}
-              className="p-2 rounded-lg transition-all duration-200 hover:bg-surface-container"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <span className="material-symbols-outlined text-[20px]">{icon}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-full font-mono text-[9px] font-black tracking-widest shadow-sm">
-          <span className="live-dot" style={{ width:6, height:6, background:'#A2E037' }} />
-          LIVE
+          >
+            <span className="live-dot" style={{ width: 6, height: 6, background: '#A2E037' }} />
+            LIVE
+          </div>
         </div>
       </div>
     </header>

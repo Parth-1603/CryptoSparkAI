@@ -4,19 +4,25 @@ import Sidebar from './Sidebar';
 import TopNav from './TopNav';
 import Footer from './Footer';
 import Chatbot from '../shared/Chatbot';
+import { PageProgressBar } from '../shared/LoadingState';
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pageKey, setPageKey] = useState(0);
+  const [isNavigating, setIsNavigating] = useState(false);
   const location = useLocation();
 
   useEffect(() => {
+    setIsNavigating(true);
     setPageKey(k => k + 1);
     window.scrollTo({ top: 0, behavior: 'instant' });
+    const timer = setTimeout(() => setIsNavigating(false), 350);
+    return () => clearTimeout(timer);
   }, [location.pathname]);
 
   return (
     <div className="flex min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text)' }}>
+      <PageProgressBar isLoading={isNavigating} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollReveal } from '../hooks/useScrollReveal';
+import { useTheme } from '../context/ThemeContext';
 
 /* ═══════════════════════════════════════════════════════════
    SCRAMBLE TEXT  —  starts visible, then scrambles in
@@ -205,6 +206,8 @@ const PIPELINE = [
    HOME
 ═══════════════════════════════════════════════════════════ */
 export default function Home() {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { isDark } = useTheme();
   const heroRef  = useRef(null);
   const statsRef = useScrollReveal();
   const featRef  = useScrollReveal();
@@ -231,40 +234,137 @@ export default function Home() {
     return () => window.removeEventListener('mousemove', onMove);
   }, []);
 
+  const homeNavItems = [
+    { to: '/', label: 'Home' },
+    { to: '/dashboard', label: 'Dashboard' },
+    { to: '/predictions', label: 'Predictions' },
+    { to: '/model-metrics', label: 'Metrics' },
+    { to: '/infrastructure', label: 'Pipeline' },
+    { to: '/about', label: 'About' },
+  ];
+
   return (
     <div className="overflow-x-hidden min-h-screen flex flex-col" style={{ background: 'var(--bg)' }}>
 
-      {/* ── NAV ────────────────────────────────── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-6 lg:px-10 py-4"
-           style={{ background: 'rgba(5,8,7,0.80)', backdropFilter: 'blur(20px)', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-primary flex items-center justify-center shadow-glow">
-            <span className="text-white text-[10px] font-black">CS</span>
+      {/* ── FLOATING CAPSULE NAVBAR (Attached Design) ── */}
+      <header className="fixed top-4 sm:top-5 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+        <nav
+          className="pointer-events-auto w-full max-w-4xl rounded-full px-2 sm:px-3 py-1.5 sm:py-2 flex items-center justify-between transition-all duration-300 backdrop-blur-xl"
+          style={{
+            background: isDark ? 'rgba(12, 16, 14, 0.72)' : 'rgba(255, 255, 255, 0.75)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            color: isDark ? '#ffffff' : '#000000',
+            border: isDark ? '1px solid rgba(255,255,255,0.16)' : '1px solid rgba(255,255,255,0.6)',
+            boxShadow: isDark
+              ? '0 16px 40px -8px rgba(0,0,0,0.8), inset 0 1px 1px rgba(255,255,255,0.18)'
+              : '0 16px 40px -8px rgba(0,0,0,0.08), inset 0 1px 2px rgba(255,255,255,0.95)',
+          }}
+        >
+          {/* Left Circular Badge */}
+          <Link
+            to="/"
+            onClick={() => setMobileMenuOpen(false)}
+            className="flex items-center gap-2.5 group shrink-0"
+            aria-label="CryptoSpark AI Home"
+          >
+            <div
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-black text-sm tracking-tighter transition-transform duration-200 group-hover:scale-105 shadow-sm"
+              style={{
+                background: isDark ? '#ffffff' : '#000000',
+                color: isDark ? '#000000' : '#ffffff',
+              }}
+            >
+              CS
+            </div>
+            <span className="font-extrabold text-sm tracking-tight hidden lg:block pr-2">
+              CryptoSpark
+            </span>
+          </Link>
+
+          {/* Center Links (Desktop) */}
+          <div className="hidden md:flex items-center gap-6 lg:gap-8 px-2">
+            {homeNavItems.map(item => (
+              <Link
+                key={item.to}
+                to={item.to}
+                className="text-xs sm:text-sm font-semibold transition-opacity duration-200 hover:opacity-65"
+                style={{
+                  color: isDark ? '#ffffff' : '#000000',
+                }}
+              >
+                {item.label}
+              </Link>
+            ))}
           </div>
-          <span className="font-extrabold text-white text-sm tracking-tight hidden sm:block">CryptoSpark AI</span>
-        </Link>
 
-        <div className="hidden md:flex items-center gap-1">
-          {['/', '/dashboard', '/predictions', '/infrastructure', '/about'].map((to, i) => (
-            <Link key={to} to={to}
-                  className="px-3.5 py-2 text-xs font-semibold text-white/50 hover:text-white hover:bg-white/6 rounded-lg transition-all duration-200">
-              {['Home', 'Dashboard', 'Predictions', 'Pipeline', 'About'][i]}
+          {/* Right Action Pill Button + Mobile Hamburger */}
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              to="/dashboard"
+              className="rounded-full px-4 sm:px-6 py-2 sm:py-2.5 font-bold text-xs sm:text-sm transition-all duration-200 hover:scale-[1.02] active:scale-95 shadow-sm flex items-center gap-1.5 min-h-[38px]"
+              style={{
+                background: isDark ? '#ffffff' : '#000000',
+                color: isDark ? '#000000' : '#ffffff',
+              }}
+            >
+              <span>Launch App</span>
+              <span className="material-symbols-outlined text-base">arrow_forward</span>
             </Link>
-          ))}
-        </div>
 
-        <Link to="/dashboard"
-              className="btn-primary px-5 py-2.5 rounded-xl text-sm font-bold flex items-center gap-1.5">
-          Launch App
-          <span className="material-symbols-outlined text-base">arrow_forward</span>
-        </Link>
-      </nav>
+            {/* Mobile Toggle */}
+            <button
+              onClick={() => setMobileMenuOpen(o => !o)}
+              className="md:hidden w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+              style={{
+                background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)',
+                color: isDark ? '#ffffff' : '#000000',
+              }}
+              aria-label={mobileMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            >
+              <span className="material-symbols-outlined text-xl">
+                {mobileMenuOpen ? 'close' : 'menu'}
+              </span>
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      {/* Mobile Menu Dropdown */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed top-20 sm:top-24 left-4 right-4 z-50 max-w-md mx-auto rounded-3xl p-4 shadow-2xl backdrop-blur-2xl border animate-fade-in-up"
+          style={{
+            background: isDark ? 'rgba(10,12,11,0.96)' : 'rgba(255,255,255,0.96)',
+            borderColor: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+            color: isDark ? '#ffffff' : '#000000',
+          }}
+        >
+          <div className="flex flex-col gap-1">
+            {homeNavItems.map(item => (
+              <Link
+                key={item.to}
+                to={item.to}
+                onClick={() => setMobileMenuOpen(false)}
+                className="px-4 py-3 rounded-2xl text-sm font-bold transition-all duration-200 flex items-center justify-between min-h-[44px]"
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)',
+                  color: isDark ? '#ffffff' : '#000000',
+                }}
+              >
+                <span>{item.label}</span>
+                <span className="material-symbols-outlined text-xs opacity-50">arrow_forward_ios</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── HERO ───────────────────────────────── */}
       <section
         ref={heroRef}
-        className="hero-bg hero-cursor-glow relative flex items-center min-h-screen px-6 lg:px-16 overflow-hidden"
-        style={{ paddingTop: 120, paddingBottom: 80 }}   /* generous offset for fixed nav */
+        className="hero-bg hero-cursor-glow relative flex items-center min-h-screen px-4 sm:px-6 lg:px-16 overflow-hidden"
+        style={{ paddingTop: 110, paddingBottom: 70 }}   /* generous offset for fixed nav */
       >
         {/* Decorative rings */}
         <div className="absolute -top-24 -right-24 w-[520px] h-[520px] rounded-full border ring-drift pointer-events-none"
@@ -278,10 +378,10 @@ export default function Home() {
         <div className="absolute top-1/3 right-1/3 w-80 h-80 rounded-full animate-float pointer-events-none"
              style={{ background: 'radial-gradient(circle, rgba(44,110,89,0.10) 0%, transparent 70%)', filter: 'blur(40px)' }} />
 
-        <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-14 items-center">
+        <div className="relative z-10 w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-14 items-center">
 
           {/* ── Left: copy ── */}
-          <div className="space-y-8">
+          <div className="space-y-6 sm:space-y-8">
             <div className="animate-fade-in inline-flex items-center gap-2 px-4 py-2 rounded-full border"
                  style={{ background: 'rgba(44,110,89,0.12)', borderColor: 'rgba(44,110,89,0.35)' }}>
               <span className="live-dot" style={{ background: '#A2E037' }} />
@@ -292,13 +392,13 @@ export default function Home() {
 
             {/* Headline */}
             <div style={{ lineHeight: 0.95, letterSpacing: '-0.042em', fontWeight: 900 }}>
-              <div className="block text-white animate-fade-in-up" style={{ fontSize: 'clamp(48px, 7.5vw, 96px)', animationDelay: '60ms' }}>
+              <div className="block text-white animate-fade-in-up" style={{ fontSize: 'clamp(36px, 7.5vw, 96px)', animationDelay: '60ms' }}>
                 <ScrambleText text="PREDICT" delay={180} />
               </div>
-              <div className="block text-white animate-fade-in-up" style={{ fontSize: 'clamp(48px, 7.5vw, 96px)', animationDelay: '150ms' }}>
+              <div className="block text-white animate-fade-in-up" style={{ fontSize: 'clamp(36px, 7.5vw, 96px)', animationDelay: '150ms' }}>
                 <ScrambleText text="THE FUTURE" delay={380} />
               </div>
-              <div className="block animate-fade-in-up" style={{ fontSize: 'clamp(48px, 7.5vw, 96px)', animationDelay: '240ms' }}>
+              <div className="block animate-fade-in-up" style={{ fontSize: 'clamp(36px, 7.5vw, 96px)', animationDelay: '240ms' }}>
                 <span style={{
                   WebkitTextStroke: '2px rgba(162,224,55,0.70)',
                   color: 'transparent',
@@ -309,20 +409,20 @@ export default function Home() {
               </div>
             </div>
 
-            <p className="text-white/40 text-base lg:text-lg max-w-md leading-relaxed animate-fade-in-up"
+            <p className="text-white/50 text-sm sm:text-base lg:text-lg max-w-md leading-relaxed animate-fade-in-up"
                style={{ animationDelay: '340ms' }}>
               Distributed computing meets ensemble machine learning.
               <br />AWS S3 · Apache Spark · XGBoost · LSTM · React
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 animate-fade-in-up" style={{ animationDelay: '420ms' }}>
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 animate-fade-in-up" style={{ animationDelay: '420ms' }}>
               <Link to="/dashboard"
-                    className="btn-primary px-8 py-3.5 rounded-2xl text-base font-bold flex items-center gap-2.5 shadow-glow">
+                    className="btn-primary px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl text-sm sm:text-base font-bold flex items-center gap-2.5 shadow-glow min-h-[44px]">
                 <span className="material-symbols-outlined">rocket_launch</span>
                 Launch Dashboard
               </Link>
               <Link to="/predictions"
-                    className="btn-ghost px-8 py-3.5 rounded-2xl text-base font-semibold flex items-center gap-2.5"
+                    className="btn-ghost px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl text-sm sm:text-base font-semibold flex items-center gap-2.5 min-h-[44px]"
                     style={{ color: 'rgba(255,255,255,0.7)', borderColor: 'rgba(255,255,255,0.15)' }}>
                 <span className="material-symbols-outlined">online_prediction</span>
                 Try Predictions
@@ -330,16 +430,16 @@ export default function Home() {
             </div>
 
             {/* Mini stats */}
-            <div className="grid grid-cols-4 gap-4 pt-4 border-t border-white/8 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-white/8 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
               {[
                 { val: '14M+',  label: 'Records' },
                 { val: '94.2%', label: 'Accuracy' },
                 { val: '<45ms', label: 'Latency' },
                 { val: '1.2TB', label: 'Training' },
               ].map(s => (
-                <div key={s.label} className="text-center">
+                <div key={s.label} className="text-center p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
                   <p className="font-black text-white numerical leading-none" style={{ fontSize: 'clamp(16px, 2vw, 22px)' }}>{s.val}</p>
-                  <p className="text-[9px] font-bold uppercase tracking-widest mt-1" style={{ color: 'rgba(255,255,255,0.28)' }}>{s.label}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest mt-1" style={{ color: 'rgba(255,255,255,0.35)' }}>{s.label}</p>
                 </div>
               ))}
             </div>
@@ -593,14 +693,14 @@ export default function Home() {
             Jump into the live dashboard, run interactive ML predictions, or explore the full distributed architecture.
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
             <Link to="/dashboard"
-                  className="btn-primary px-10 py-4 rounded-2xl text-base font-bold flex items-center gap-2.5 shadow-glow">
+                  className="btn-primary px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-bold flex items-center justify-center gap-2.5 shadow-glow w-full sm:w-auto min-h-[48px]">
               <span className="material-symbols-outlined">dashboard</span>
               Open Dashboard
             </Link>
             <Link to="/predictions"
-                  className="btn-ghost px-10 py-4 rounded-2xl text-base font-semibold flex items-center gap-2.5">
+                  className="btn-ghost px-8 sm:px-10 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base font-semibold flex items-center justify-center gap-2.5 w-full sm:w-auto min-h-[48px]">
               <span className="material-symbols-outlined">online_prediction</span>
               Try Predictions
             </Link>
@@ -609,22 +709,16 @@ export default function Home() {
       </section>
 
       {/* ── FOOTER ──────────────────────────────── */}
-      <footer className="border-t py-10 px-8" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+      <footer className="border-t py-8 px-6 sm:px-8" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-7 h-7 rounded-lg bg-gradient-primary flex items-center justify-center">
               <span className="text-white text-[9px] font-black">CS</span>
             </div>
             <div>
               <p className="font-bold text-sm" style={{ color: 'var(--text)' }}>CryptoSpark AI</p>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>© 2024 · Academic Capstone</p>
             </div>
           </div>
-          <nav className="flex flex-wrap justify-center gap-x-6 gap-y-1">
-            {[['/dashboard','Dashboard'],['/predictions','Predictions'],['/infrastructure','Infrastructure'],['/model-metrics','Metrics'],['/about','About']].map(([h,l]) => (
-              <Link key={h} to={h} className="text-xs font-medium hover:text-primary transition-colors" style={{ color: 'var(--text-muted)' }}>{l}</Link>
-            ))}
-          </nav>
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest"
                style={{ background: 'rgba(44,110,89,0.08)', color: '#2C6E59', border: '1px solid rgba(44,110,89,0.2)' }}>
             <span className="live-dot" />LIVE

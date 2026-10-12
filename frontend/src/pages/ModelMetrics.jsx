@@ -20,7 +20,7 @@ export default function ModelMetrics() {
   return (
     <div className="space-y-8">
       {/* Model Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {models.map((m, i) => (
           <GlassCard
             key={m.name}
@@ -137,12 +137,9 @@ export default function ModelMetrics() {
             <h2 className="font-extrabold text-base text-charcoal">Cross-Validation Analytics</h2>
             <p className="text-xs text-cool-grey mt-0.5">Hyperparameter tuning results</p>
           </div>
-          <button className="btn-primary px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">download</span> Export
-          </button>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
+          <table className="w-full min-w-[560px] text-left text-xs">
             <thead className="bg-surface-container-low text-[10px] font-bold text-cool-grey uppercase tracking-wider">
               <tr>
                 <th className="px-6 py-4">Model Instance</th>

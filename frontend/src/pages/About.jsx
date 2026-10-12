@@ -1,12 +1,6 @@
 import React from 'react';
 import GlassCard from '../components/shared/GlassCard';
 
-const contributors = [
-  { name: 'Parth Patil', role: 'ML Specialist', desc: 'Optimized Random Forest and LSTM ensembles for volatility classification.', initials: 'AT', bg: 'bg-gradient-primary text-white' },
-  { name: 'Yadnika Patil', role: 'Data Engineer', desc: 'Architected the Apache Spark streaming layer and AWS S3 data lake integration.', initials: 'EV', bg: 'bg-lime text-charcoal' },
-  { name: 'Jordan Mikael', role: 'Frontend Architect', desc: 'Engineered the real-time React dashboard with sub-100ms UI re-renders.', initials: 'JM', bg: 'bg-surface-container text-primary border border-outline-variant' },
-];
-
 const techStack = [
   { name: 'React / Tailwind', category: 'Frontend Engine', icon: 'javascript' },
   { name: 'Apache Spark', category: 'Data Processing', icon: 'hub' },
@@ -16,16 +10,16 @@ const techStack = [
 
 export default function About() {
   return (
-    <div className="space-y-12">
+    <div className="space-y-8 sm:space-y-12">
       {/* Hero */}
-      <div className="animate-fade-in-up relative bg-white rounded-2xl p-8 md:p-14 border border-outline-variant overflow-hidden">
+      <div className="animate-fade-in-up relative bg-white rounded-2xl p-6 sm:p-8 md:p-14 border border-outline-variant overflow-hidden">
         {/* Decorative orb */}
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-10 -left-10 w-48 h-48 bg-lime/5 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 max-w-3xl space-y-5">
           <span className="inline-block px-3 py-1.5 rounded-full bg-primary/8 border border-primary/20 text-primary text-[11px] font-bold tracking-widest uppercase">
-            Academic Capstone 2024
+            Platform Architecture
           </span>
           <h2 className="font-extrabold text-charcoal leading-tight" style={{ fontSize: 'clamp(28px, 5vw, 48px)', letterSpacing: '-0.03em' }}>
             CryptoSpark AI:<br />
@@ -50,7 +44,7 @@ export default function About() {
             CryptoSpark AI bridges the gap between institutional data pipelines and accessible predictive modeling.
           </p>
 
-          <div className="mt-8 pt-6 border-t border-outline-variant grid grid-cols-3 gap-4">
+          <div className="mt-8 pt-6 border-t border-outline-variant grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { val: '99.2%', label: 'Data Fidelity' },
               { val: '<45ms', label: 'Pipeline Latency' },
@@ -88,7 +82,7 @@ export default function About() {
       {/* Tech Stack */}
       <div className="space-y-4 animate-fade-in-up" style={{ animationDelay: '150ms' }}>
         <h3 className="font-extrabold text-xl text-charcoal" style={{ letterSpacing: '-0.01em' }}>Tech Stack Matrix</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           {techStack.map((tech, i) => (
             <GlassCard key={tech.name} className="p-6 rounded-xl flex flex-col items-center text-center gap-4 gradient-border" style={{ animationDelay: `${i * 60}ms` }}>
               <div className="w-12 h-12 flex items-center justify-center bg-primary/8 rounded-full group-hover:bg-primary/15 transition-colors duration-300">
@@ -98,25 +92,6 @@ export default function About() {
                 <p className="font-bold text-sm text-charcoal">{tech.name}</p>
                 <p className="text-[10px] text-cool-grey uppercase font-semibold tracking-wider mt-0.5">{tech.category}</p>
               </div>
-            </GlassCard>
-          ))}
-        </div>
-      </div>
-
-      {/* Contributors */}
-      <div className="space-y-4 animate-fade-in-up" style={{ animationDelay: '200ms' }}>
-        <h3 className="font-extrabold text-xl text-charcoal" style={{ letterSpacing: '-0.01em' }}>Project Contributors</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {contributors.map((c, i) => (
-            <GlassCard key={c.name} lift className="p-8 rounded-xl text-center space-y-4" style={{ animationDelay: `${i * 80}ms` }}>
-              <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center font-extrabold text-xl shadow-md ${c.bg}`}>
-                {c.initials}
-              </div>
-              <div>
-                <h5 className="font-extrabold text-lg text-primary">{c.name}</h5>
-                <p className="text-[10px] text-cool-grey uppercase tracking-widest font-semibold mt-0.5">{c.role}</p>
-              </div>
-              <p className="text-xs text-on-surface leading-relaxed">{c.desc}</p>
             </GlassCard>
           ))}
         </div>

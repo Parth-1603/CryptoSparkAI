@@ -72,13 +72,12 @@ export default function Chatbot() {
       const res = await api.chat(trimmed, historySnapshot);
       setIsTyping(false);
       addBotMessage(res.text, res.chips);
-    } catch (err) {
+    } catch {
       setIsTyping(false);
       addBotMessage(
         "Sorry, I couldn't reach the server just now. Please try again in a moment.",
         []
       );
-      console.error('Chatbot request failed:', err);
     }
   };
 
@@ -89,10 +88,10 @@ export default function Chatbot() {
   return (
     <>
       {/* ── Floating Button ───────────────────────── */}
-      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+      <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end gap-3">
         {/* Tooltip hint */}
         {!open && mounted && (
-          <div className="animate-fade-in-up bg-charcoal dark:bg-dark-surface text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg pointer-events-none whitespace-nowrap">
+          <div className="animate-fade-in-up bg-charcoal dark:bg-dark-surface text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg pointer-events-none whitespace-nowrap hidden xs:block">
             Ask me anything ✦
           </div>
         )}
@@ -100,13 +99,21 @@ export default function Chatbot() {
         <button
           onClick={() => setOpen(o => !o)}
           aria-label="Toggle AI assistant"
-          className="relative w-14 h-14 rounded-2xl bg-gradient-primary text-white shadow-glow flex items-center justify-center transition-all duration-300 hover:scale-110 hover:shadow-glow active:scale-95"
+          className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-2xl backdrop-blur-xl flex items-center justify-center transition-all duration-300 hover:scale-110 active:scale-95 group"
+          style={{
+            background: 'rgba(44, 110, 89, 0.45)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
+            boxShadow: '0 8px 32px rgba(44, 110, 89, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.4)',
+            color: '#f9f9f9ff',
+          }}
         >
           {/* Unread badge */}
           {hasUnread && !open && (
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-lime rounded-full border-2 border-white dark:border-dark-bg animate-ping-once" />
           )}
-          <span className="material-symbols-outlined text-2xl transition-transform duration-300" style={{ transform: open ? 'rotate(45deg)' : 'rotate(0deg)' }}>
+          <span className="material-symbols-outlined text-2xl transition-transform duration-300 drop-shadow" style={{ transform: open ? 'rotate(45deg)' : 'rotate(0deg)' }}>
             {open ? 'close' : 'smart_toy'}
           </span>
         </button>
@@ -115,7 +122,7 @@ export default function Chatbot() {
       {/* ── Chat Panel ───────────────────────────── */}
       {open && (
         <div
-          className="chat-panel chat-panel-enter fixed bottom-24 right-6 z-50 w-[340px] sm:w-[360px] rounded-2xl overflow-hidden shadow-chat flex flex-col"
+          className="chat-panel chat-panel-enter fixed bottom-20 sm:bottom-24 right-3 sm:right-6 z-50 w-[calc(100vw-24px)] max-w-[360px] rounded-2xl overflow-hidden shadow-chat flex flex-col"
           style={{
             background: 'var(--surface)',
             border: '1px solid var(--border)',
@@ -125,7 +132,16 @@ export default function Chatbot() {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3.5 bg-gradient-primary">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/15 flex items-center justify-center">
+              <div
+                className="w-9 h-9 rounded-xl flex items-center justify-center"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.18)',
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  border: '1px solid rgba(255, 255, 255, 0.35)',
+                  boxShadow: 'inset 0 1px 1px rgba(255, 255, 255, 0.4)',
+                }}
+              >
                 <span className="material-symbols-outlined text-white text-lg">smart_toy</span>
               </div>
               <div>
@@ -136,7 +152,11 @@ export default function Chatbot() {
                 </div>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} className="text-white/70 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10">
+            <button
+              onClick={() => setOpen(false)}
+              className="text-white/70 hover:text-white transition-colors p-2 rounded-lg hover:bg-white/10 min-w-[36px] min-h-[36px] flex items-center justify-center"
+              aria-label="Close chat"
+            >
               <span className="material-symbols-outlined text-lg">close</span>
             </button>
           </div>
@@ -148,8 +168,8 @@ export default function Chatbot() {
                 {/* Bubble */}
                 <div
                   className={`chat-msg-${msg.from} max-w-[85%] px-3.5 py-2.5 rounded-2xl text-[13px] leading-relaxed whitespace-pre-line ${msg.from === 'user'
-                      ? 'bg-primary text-white rounded-br-sm font-medium'
-                      : 'rounded-bl-sm font-medium'
+                    ? 'bg-primary text-white rounded-br-sm font-medium'
+                    : 'rounded-bl-sm font-medium'
                     }`}
                   style={msg.from === 'bot' ? { background: 'var(--surface-low)', color: 'var(--text)' } : {}}
                 >

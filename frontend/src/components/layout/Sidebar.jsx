@@ -36,8 +36,8 @@ export default function Sidebar({ isOpen, onClose }) {
           boxShadow: isDark ? '4px 0 24px rgba(0,0,0,0.3)' : '4px 0 24px rgba(0,0,0,0.04)',
         }}
       >
-        {/* Logo */}
-        <div className="px-5 py-6 border-b" style={{ borderColor: 'var(--border)' }}>
+        {/* Logo and Mobile Close */}
+        <div className="px-5 py-5 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
           <NavLink to="/" onClick={onClose} className="flex items-center gap-3 group">
             <div className="w-9 h-9 rounded-xl bg-gradient-primary flex items-center justify-center shadow-sm group-hover:shadow-glow transition-shadow duration-300 shrink-0">
               <span className="text-white text-xs font-black">CS</span>
@@ -51,6 +51,15 @@ export default function Sidebar({ isOpen, onClose }) {
               </p>
             </div>
           </NavLink>
+
+          <button
+            onClick={onClose}
+            className="lg:hidden min-w-[40px] min-h-[40px] flex items-center justify-center rounded-lg hover:bg-primary/10 transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            aria-label="Close sidebar"
+          >
+            <span className="material-symbols-outlined text-xl">close</span>
+          </button>
         </div>
 
         {/* Navigation */}
@@ -58,7 +67,7 @@ export default function Sidebar({ isOpen, onClose }) {
           <p className="px-3 mb-3 text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>
             Navigation
           </p>
-          <div className="space-y-0.5">
+          <div className="space-y-1">
             {navItems.map((item, i) => (
               <NavLink
                 key={item.label}
@@ -66,7 +75,7 @@ export default function Sidebar({ isOpen, onClose }) {
                 end={item.end}
                 onClick={onClose}
                 className={({ isActive }) => `
-                  relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium
+                  relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium min-h-[44px]
                   transition-all duration-200 animate-slide-in-left group
                   ${isActive
                     ? 'text-primary font-semibold'
