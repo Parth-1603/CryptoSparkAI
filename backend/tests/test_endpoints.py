@@ -139,3 +139,33 @@ def test_predict_invalid_asset(client):
     }
     resp = client.post("/api/v1/predict", json=payload)
     assert resp.status_code == 400
+
+def test_chat_endpoint_valid_query(client):
+    """Verify chatbot endpoint responds with valid text and chip suggestions."""
+    payload = {
+        "message": "How accurate?",
+        "history": []
+    }
+    resp = client.post("/api/v1/chat", json=payload)
+    assert resp.status_code == 200
+    res = resp.json()
+    assert "text" in res
+    assert len(res["text"]) > 10
+    assert "chips" in res
+    assert isinstance(res["chips"], list)
+
+def test_chat_endpoint_history_and_fallback(client):
+    """Verify chatbot handles conversation history and never raises 500."""
+    payload = {
+        "message": "What models are supported?",
+        "history": [
+            {"role": "user", "content": "Hello"},
+            {"role": "assistant", "content": "Hi! How can I help?"}
+        ]
+    }
+    resp = client.post("/api/v1/chat", json=payload)
+    assert resp.status_code == 200
+    res = resp.json()
+    assert "text" in res
+    assert len(res["chips"]) > 0
+
