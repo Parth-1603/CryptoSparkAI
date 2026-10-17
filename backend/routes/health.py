@@ -3,6 +3,7 @@ import os
 import httpx
 import pandas as pd
 from backend.model_loader import loaded, model_status, COINS
+from backend.utils.coingecko import ping_coingecko_service, get_coingecko_api_key
 
 router = APIRouter()
 
@@ -32,14 +33,10 @@ async def pipeline_health():
         else:
             dataset_status[coin] = {"status": "MISSING"}
 
-    # 2. Check CoinGecko API
-    coingecko_status = "UNKNOWN"
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            res = await client.get("https://api.coingecko.com/api/v3/ping")
-            coingecko_status = "HEALTHY" if res.status_code == 200 else "DEGRADED"
-    except Exception:
-        coingecko_status = "UNREACHABLE_FALLBACK_ACTIVE"
+    # 2. Check CoinGecko API with Demo API Key authentication
+    ping_ok = await ping_coingecko_service()
+    coingecko_status = "HEALTHY" if ping_ok else "UNREACHABLE_FALLBACK_ACTIVE"
+    has_cg_key = bool(get_coingecko_api_key())
 
     # 3. Check Groq API
     groq_status = "CONFIGURED" if os.environ.get("GROQ_API_KEY") else "FALLBACK_MODE"
@@ -58,6 +55,7 @@ async def pipeline_health():
         "datasets": dataset_status,
         "services": {
             "coinGecko": coingecko_status,
+            "coinGeckoPlan": "Demo API Key (100 calls/min, 10,000/month)" if has_cg_key else "Public Tier",
             "groqLLM": groq_status
         },
         "supportedCoins": COINS,

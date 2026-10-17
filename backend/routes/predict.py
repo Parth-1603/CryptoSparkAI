@@ -88,30 +88,27 @@ class PredictRequest(BaseModel):
     period:    str
     algorithm: str
 
+from backend.utils.coingecko import get_live_coin_price, get_coingecko_api_key
+
 async def fetch_live_price_safe(coin: str, fallback_price: float, logs: list) -> (float, bool):
     """
-    Fetch real-time price from CoinGecko with safe fallback to processed dataset close price.
+    Fetch real-time price from CoinGecko with Demo API Key and safe fallback to processed dataset close price.
     """
-    coin_id = COINGECKO_MAP.get(coin)
-    if not coin_id:
-        return fallback_price, False
+    live_price, change_24h, is_live = await get_live_coin_price(coin, fallback_price)
+    has_key = bool(get_coingecko_api_key())
+    auth_label = "Demo API Key" if has_key else "Public Tier"
 
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            resp = await client.get(
-                "https://api.coingecko.com/api/v3/simple/price",
-                params={"ids": coin_id, "vs_currencies": "usd"}
-            )
-            if resp.status_code == 200:
-                data = resp.json()
-                live_price = float(data[coin_id]["usd"])
-                logs.append({"tag": "DATA", "text": f"Live CoinGecko spot price retrieved: ${live_price:,.2f}"})
-                return live_price, True
-    except Exception as e:
+    if is_live:
         logs.append({
-            "tag": "FALLBACK",
-            "text": "Live price unavailable — showing last known price from processed dataset."
+            "tag": "DATA",
+            "text": f"Live CoinGecko spot price retrieved ({auth_label}): ${live_price:,.2f} (24h: {change_24h:+.2f}%)"
         })
+        return live_price, True
+
+    logs.append({
+        "tag": "FALLBACK",
+        "text": "Live price fallback active — using last known close price from processed dataset."
+    })
     return fallback_price, False
 
 def calculate_ma7_fallback(coin: str, data_dir: str, mult: float) -> float:

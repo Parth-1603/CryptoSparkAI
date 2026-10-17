@@ -2,10 +2,11 @@ from fastapi import APIRouter
 import httpx
 import pandas as pd
 import os
+from backend.utils.coingecko import fetch_coingecko_prices, get_coingecko_headers, COINGECKO_BASE
 
 router = APIRouter()
 
-COINGECKO = "https://api.coingecko.com/api/v3"
+COINGECKO = COINGECKO_BASE
 
 COIN_IDS = {
     "BTC": "bitcoin",
@@ -17,8 +18,7 @@ COIN_IDS = {
 @router.get("/v1/market/summary")
 async def market_summary():
     """Matches Dashboard KPI bar exactly with live global data & safe fallbacks"""
-    api_key = os.environ.get("COINGECKO_API_KEY")
-    headers = {"x-cg-demo-api-key": api_key} if api_key else {}
+    headers = get_coingecko_headers()
 
     btc_price, btc_change = 80786.46, -0.94
     eth_price, eth_change = 2432.50, -2.10
@@ -30,30 +30,19 @@ async def market_summary():
     sentiment_score = 72
     sentiment_label = "Greed"
 
+    # 1. Spot prices for BTC and ETH using authenticated/cached CoinGecko utility
+    try:
+        data = await fetch_coingecko_prices()
+        btc = data.get("bitcoin", {})
+        eth = data.get("ethereum", {})
+        btc_price  = float(btc.get("usd", btc_price))
+        btc_change = float(btc.get("usd_24h_change", btc_change))
+        eth_price  = float(eth.get("usd", eth_price))
+        eth_change = float(eth.get("usd_24h_change", eth_change))
+    except Exception:
+        pass
+
     async with httpx.AsyncClient(timeout=6.0) as client:
-        # 1. Spot prices for BTC and ETH
-        try:
-            ids = ",".join(COIN_IDS.values())
-            r = await client.get(
-                f"{COINGECKO}/simple/price",
-                params={
-                    "ids": ids,
-                    "vs_currencies": "usd",
-                    "include_24hr_change": "true",
-                    "include_market_cap": "true"
-                },
-                headers=headers
-            )
-            if r.status_code == 200:
-                data = r.json()
-                btc = data.get("bitcoin", {})
-                eth = data.get("ethereum", {})
-                btc_price  = float(btc.get("usd", btc_price))
-                btc_change = float(btc.get("usd_24h_change", btc_change))
-                eth_price  = float(eth.get("usd", eth_price))
-                eth_change = float(eth.get("usd_24h_change", eth_change))
-        except Exception:
-            pass
 
         # 2. Live Global Market Cap, Volume & Dominance
         try:
@@ -126,23 +115,8 @@ async def market_summary():
 
 @router.get("/v1/market/watchlist")
 async def watchlist():
-    """Matches watchlist table exactly"""
-    async with httpx.AsyncClient(timeout=10) as client:
-        try:
-            ids = ",".join(COIN_IDS.values())
-            r = await client.get(
-                f"{COINGECKO}/simple/price",
-                params={
-                    "ids": ids,
-                    "vs_currencies": "usd",
-                    "include_24hr_change": "true",
-                    "include_market_cap": "true",
-                    "include_24hr_vol": "true"
-                }
-            )
-            data = r.json()
-        except Exception:
-            data = {}
+    """Matches watchlist table exactly using authenticated cached prices"""
+    data = await fetch_coingecko_prices()
 
     fallbacks = {
         "bitcoin":  {"price": 80786.46, "change": -0.94, "cap": 1.61e12, "vol": 42.5e9},
