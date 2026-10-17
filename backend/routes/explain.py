@@ -2,9 +2,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from groq import Groq
 
+# Ensure .env is loaded from backend directory
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 load_dotenv()
 
 router = APIRouter()
@@ -103,27 +107,31 @@ Instructions:
 6. End with a 1-sentence plain English summary for non-technical users.
 7. CRITICAL RULES: Keep under 140 words. NEVER use the words 'buy' or 'sell' — always use 'accumulate' or 'reduce'. Do not give formal financial advice."""
 
-    try:
-        response = client.chat.completions.create(
-            model="llama3-8b-8192",
-            messages=[
-                {"role": "system", "content": "You are a professional quantitative financial AI explainability engine."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=220,
-            temperature=0.6
-        )
-        explanation_text = response.choices[0].message.content.strip()
-        return {
-            "explanation": explanation_text,
-            "source": "GROQ_LLAMA3",
-            "model": "llama3-8b-8192"
-        }
-    except Exception as e:
-        print(f"[GROQ EXPLAIN FALLBACK]: {e}")
-        # Graceful fallback without failing the HTTP request
-        return {
-            "explanation": generate_deterministic_fallback_explanation(req),
-            "source": "GROQ_ERROR_FALLBACK",
-            "model": "CryptoSpark Rule Engine (Groq Fallback)"
-        }
+    supported_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-20b"]
+    for model_name in supported_models:
+        try:
+            response = client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "You are a professional quantitative financial AI explainability engine."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=220,
+                temperature=0.6
+            )
+            explanation_text = response.choices[0].message.content.strip()
+            return {
+                "explanation": explanation_text,
+                "source": "GROQ_LLM",
+                "model": model_name
+            }
+        except Exception as e:
+            print(f"[GROQ EXPLAIN WARN] Model {model_name} failed: {e}")
+            continue
+
+    # Graceful fallback without failing the HTTP request
+    return {
+        "explanation": generate_deterministic_fallback_explanation(req),
+        "source": "GROQ_ERROR_FALLBACK",
+        "model": "CryptoSpark Rule Engine (Groq Fallback)"
+    }

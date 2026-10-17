@@ -6,18 +6,20 @@ import httpx
 import numpy as np
 import pandas as pd
 from backend.model_loader import loaded, model_status
-from backend.utils.feature_builder import get_latest_features, FEATURES
+from backend.utils.feature_builder import get_latest_features, FEATURES, FEATURE_COLS, get_sequence_features
 
 router = APIRouter()
 
 DATA_DIR = os.path.join(
     os.path.dirname(__file__), "..", "..", "dataset", "processed"
 )
-# Fixed: this used to point at a nonexistent "models" folder (missing the
-# "ml" segment), which silently made topFeatures always come back empty.
 MODELS_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "..", "ml", "models"
+    os.path.dirname(__file__), "..", "..", "models"
 )
+if not os.path.exists(MODELS_DIR):
+    MODELS_DIR = os.path.join(
+        os.path.dirname(__file__), "..", "..", "ml", "models"
+    )
 
 ASSET_MAP = {
     "Bitcoin (BTC)":  "btc",
@@ -27,13 +29,49 @@ ASSET_MAP = {
 }
 
 ALGO_MAP = {
-    "XGBoost (Gradient Boosting)":     "xgboost",
-    "LSTM (Recurrent Neural Network)": "lstm",
-    "Prophet (Additive Model)":         "prophet",
-    "Ensemble (Hybrid V3)":             "ensemble",
-    "Random Forest":                    "random_forest",
-    "Linear Regression":                "linear_regression"
+    "XGBoost (Gradient Boosting)":             "xgboost",
+    "LSTM (Recurrent Neural Network)":         "lstm",
+    "Prophet (Additive Model)":                 "prophet",
+    "Ensemble (Hybrid V3)":                     "ensemble",
+    "Random Forest":                            "random_forest",
+    "Random Forest (Bagging Ensemble)":         "random_forest",
+    "Linear Regression":                        "linear_regression",
+    "Linear Regression (Statistical Baseline)": "linear_regression"
 }
+
+CSV_MODEL_MAP = {
+    "xgboost": "XGBoost",
+    "lstm": "LSTM",
+    "prophet": "Prophet",
+    "ensemble": "Ensemble",
+    "random_forest": "RandomForest",
+    "linear_regression": "LinearRegression",
+}
+
+def load_comparison_metrics() -> Dict[tuple, Dict[str, float]]:
+    metrics = {}
+    csv_paths = [
+        os.path.join(MODELS_DIR, "all_models_comparison.csv"),
+        os.path.join(os.path.dirname(__file__), "..", "..", "models", "all_models_comparison.csv")
+    ]
+    for p in csv_paths:
+        if os.path.exists(p):
+            try:
+                df = pd.read_csv(p)
+                for _, row in df.iterrows():
+                    c = str(row["coin"]).strip().upper()
+                    m = str(row["model"]).strip()
+                    metrics[(c, m)] = {
+                        "mae": float(row["mae"]),
+                        "rmse": float(row["rmse"]),
+                        "r2": float(row["r2"])
+                    }
+                break
+            except Exception:
+                pass
+    return metrics
+
+COMPARISON_METRICS = load_comparison_metrics()
 
 PERIOD_MULTIPLIERS = {"1H": 1/24, "1D": 1.0, "1W": 2.5}
 SEQ_LEN = 30
@@ -90,14 +128,9 @@ def calculate_ma7_fallback(coin: str, data_dir: str, mult: float) -> float:
 
 def get_lstm_sequence(coin: str, data_dir: str, seq_len: int) -> np.ndarray:
     """
-    Build the raw (unnormalized) feature sequence for LSTM inference,
-    matching exactly what scaler_lstm_X was fit on (the same 13-column
-    FEATURES set used by the XGBoost scaler — confirmed via
-    scaler_lstm_X.feature_names_in_).
+    Build the sequence of normalized features for LSTM inference.
     """
-    df_seq = pd.read_csv(os.path.join(data_dir, f"{coin}_processed.csv"))
-    df_seq = df_seq.sort_values("timestamp").dropna()
-    return df_seq[FEATURES].values[-seq_len:]
+    return get_sequence_features(coin, data_dir, seq_len=seq_len)
 
 @router.post("/v1/predict")
 async def predict(req: PredictRequest):
@@ -140,12 +173,9 @@ async def predict(req: PredictRequest):
     pred_return = 0.0
     actual_algo_used = algo
 
-    # Fixed: was built from FEATURE_COLS (9 normalized columns), but every
-    # scaler (scaler_xgboost, scaler_lstm_X) was actually trained on the
-    # 13 raw FEATURES columns — confirmed directly via
-    # scaler.feature_names_in_. Feeding 9 values into a scaler expecting
-    # 13 raised a shape-mismatch error on every single prediction.
-    X_raw = np.array([[features[f] for f in FEATURES]])
+    # Scalers (scaler_xgboost, scaler_lstm_X, scaler_random_forest, scaler_linear_regression)
+    # were fitted on the 9 normalized FEATURE_COLS
+    X_raw = np.array([[features[f] for f in FEATURE_COLS]])
 
     # 3. Model Inference with Self-Healing Fallbacks
     try:
@@ -176,7 +206,7 @@ async def predict(req: PredictRequest):
                 try:
                     seq_matrix = get_lstm_sequence(coin, DATA_DIR, SEQ_LEN)
                     seq_scaled = models["scaler_lstm_X"].transform(seq_matrix)
-                    X_seq = seq_scaled.reshape(1, SEQ_LEN, len(FEATURES))
+                    X_seq = seq_scaled.reshape(1, SEQ_LEN, len(FEATURE_COLS))
                     pred_return = float(models["lstm"].predict(X_seq, verbose=0)[0][0]) * mult
                     logs.append({"tag": "MODEL", "text": "LSTM Recurrent Neural Network inference complete."})
                 except Exception as ex:
@@ -237,7 +267,7 @@ async def predict(req: PredictRequest):
                 try:
                     seq_matrix = get_lstm_sequence(coin, DATA_DIR, SEQ_LEN)
                     seq_scaled = models["scaler_lstm_X"].transform(seq_matrix)
-                    X_seq = seq_scaled.reshape(1, SEQ_LEN, len(FEATURES))
+                    X_seq = seq_scaled.reshape(1, SEQ_LEN, len(FEATURE_COLS))
                     p_lstm = float(models["lstm"].predict(X_seq, verbose=0)[0][0])
                     parts_healthy += 1
                 except Exception:
@@ -271,6 +301,30 @@ async def predict(req: PredictRequest):
             ) * mult
             logs.append({"tag": "MODEL", "text": "Ensemble Hybrid V3 consensus reached."})
 
+        # --- Random Forest ---
+        elif algo == "random_forest":
+            if "random_forest" in models and "scaler_random_forest" in models:
+                X_scaled = models["scaler_random_forest"].transform(X_raw)
+                pred_return = float(models["random_forest"].predict(X_scaled)[0]) * mult
+                logs.append({"tag": "MODEL", "text": "Random Forest regression inference complete."})
+            else:
+                pred_return = calculate_ma7_fallback(coin, DATA_DIR, mult)
+                pipeline_health = "FALLBACK"
+                actual_algo_used = "ma7_fallback"
+                logs.append({"tag": "FALLBACK", "text": "Random Forest unavailable — using MA7 fallback."})
+
+        # --- Linear Regression ---
+        elif algo == "linear_regression":
+            if "linear_regression" in models and "scaler_linear_regression" in models:
+                X_scaled = models["scaler_linear_regression"].transform(X_raw)
+                pred_return = float(models["linear_regression"].predict(X_scaled)[0]) * mult
+                logs.append({"tag": "MODEL", "text": "Linear Regression baseline inference complete."})
+            else:
+                pred_return = calculate_ma7_fallback(coin, DATA_DIR, mult)
+                pipeline_health = "FALLBACK"
+                actual_algo_used = "ma7_fallback"
+                logs.append({"tag": "FALLBACK", "text": "Linear Regression unavailable — using MA7 fallback."})
+
     except Exception as e:
         # Ultimate fail-safe fallback: Never return HTTP 500 (Requirement 6)
         pred_return = calculate_ma7_fallback(coin, DATA_DIR, mult)
@@ -282,12 +336,33 @@ async def predict(req: PredictRequest):
     pred_price = current_price * (1.0 + pred_return)
     change_pct = pred_return * 100.0
     pnl = pred_price - current_price
-
-    confidence = round(min(98.5, max(75.0, 92.0 + abs(pred_return) * 20.0 + float(np.random.uniform(-1.0, 1.0)))), 1)
-    band_pct = max(0.015, min(0.06, abs(pred_return) * 2 + 0.02))
-    lower = pred_price * (1.0 - band_pct)
-    upper = pred_price * (1.0 + band_pct)
     signal = "ACCUMULATE" if change_pct >= 0 else "REDUCE"
+
+    # Empirical model metrics lookup for deterministic confidence and bounds
+    csv_model = CSV_MODEL_MAP.get(actual_algo_used, CSV_MODEL_MAP.get(algo, "XGBoost"))
+    model_stat = COMPARISON_METRICS.get((coin.upper(), csv_model))
+    eval_r2 = model_stat["r2"] if model_stat else 0.95
+    eval_rmse = model_stat["rmse"] if model_stat else 0.0
+
+    # Deterministic confidence based on empirical R² and pipeline status
+    if pipeline_health == "FALLBACK":
+        confidence = 68.0
+        r2_display = "N/A (Fallback)"
+    elif pipeline_health == "DEGRADED":
+        confidence = round(max(50.0, min(95.0, eval_r2 * 100.0 * 0.92)), 1)
+        r2_display = f"{eval_r2:.4f}"
+    else:
+        confidence = round(max(50.0, min(99.5, eval_r2 * 100.0)), 1)
+        r2_display = f"{eval_r2:.4f}"
+
+    # Error bounds derived from model RMSE or volatility band
+    band_pct = max(0.015, min(0.06, abs(pred_return) * 2 + 0.02))
+    if eval_rmse > 0 and eval_rmse < current_price * 0.15:
+        lower = max(0.01, pred_price - eval_rmse)
+        upper = pred_price + eval_rmse
+    else:
+        lower = pred_price * (1.0 - band_pct)
+        upper = pred_price * (1.0 + band_pct)
 
     # Top feature weights for explainability
     fi_path = os.path.join(MODELS_DIR, coin, "feature_importance.csv")
@@ -329,7 +404,7 @@ async def predict(req: PredictRequest):
             "lower": f"${lower:,.2f}" if lower > 10 else f"${lower:,.4f}",
             "mean":  f"${pred_price:,.2f}" if pred_price > 10 else f"${pred_price:,.4f}",
             "upper": f"${upper:,.2f}" if upper > 10 else f"${upper:,.4f}",
-            "r2Score": "0.9932" if "xgb" in algo else "0.9924" if "lstm" in algo else "0.9921"
+            "r2Score": r2_display
         },
         "features": features,
         "topFeatures": top_features,

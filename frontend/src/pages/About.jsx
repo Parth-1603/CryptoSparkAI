@@ -4,9 +4,10 @@ import GlassCard from '../components/shared/GlassCard';
 const techStack = [
   { name: 'React / Tailwind', category: 'Frontend Engine', icon: 'javascript' },
   { name: 'Apache Spark', category: 'Data Processing', icon: 'hub' },
-  { name: 'AWS SageMaker', category: 'Infrastructure', icon: 'cloud_queue' },
+  { name: 'AWS EC2 / FastAPI', category: 'Serving Infrastructure', icon: 'cloud_queue' },
   { name: 'Scikit-Learn', category: 'Machine Learning', icon: 'model_training' },
 ];
+
 
 export default function About() {
   return (

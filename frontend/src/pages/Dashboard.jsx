@@ -4,51 +4,89 @@ import GlassCard from '../components/shared/GlassCard';
 import { SkeletonCard } from '../components/shared/LoadingState';
 import { api } from '../services/api';
 
-const TIMEFRAMES = {
-  '1D': {
-    subtext: 'Intraday neural overlay · Real-time 2s cadence',
-    predOffset: 'top-8 right-16',
-    predPrice: (kpis) => kpis?.btcUsd?.value || '$69,200',
-    change: '+2.45%',
-    fillPath: 'M0 350 Q 150 320 250 280 T 500 240 T 750 120 T 1000 80 V 400 H 0 Z',
-    linePath: 'M0 350 Q 150 320 250 280 T 500 240 T 750 120 T 1000 80',
-    xLabels: ['00:00', '06:00', '12:00', '18:00', 'Now (+1D Pred)'],
-  },
-  '1W': {
-    subtext: '7-day momentum trajectory · 4-hour aggregations',
-    predOffset: 'top-10 right-20',
-    predPrice: () => '$71,450',
-    change: '+6.18%',
-    fillPath: 'M0 320 Q 200 370 380 280 T 620 210 T 820 140 T 1000 95 V 400 H 0 Z',
-    linePath: 'M0 320 Q 200 370 380 280 T 620 210 T 820 140 T 1000 95',
-    xLabels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun (+1W Pred)'],
-  },
-  '1M': {
-    subtext: '30-day macro cycle projection · Daily aggregates',
-    predOffset: 'top-6 right-14',
-    predPrice: () => '$74,800',
-    change: '+11.35%',
-    fillPath: 'M0 360 Q 240 300 460 320 T 700 170 T 880 110 T 1000 60 V 400 H 0 Z',
-    linePath: 'M0 360 Q 240 300 460 320 T 700 170 T 880 110 T 1000 60',
-    xLabels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Next Month Target'],
-  },
-  '1Y': {
-    subtext: '52-week regression corridor · Weekly bars',
-    predOffset: 'top-12 right-24',
-    predPrice: () => '$88,500',
-    change: '+32.80%',
-    fillPath: 'M0 380 Q 250 340 420 260 T 650 220 T 850 140 T 1000 110 V 400 H 0 Z',
-    linePath: 'M0 380 Q 250 340 420 260 T 650 220 T 850 140 T 1000 110',
-    xLabels: ['Q1', 'Q2', 'Q3', 'Q4', '1-Year Target'],
-  },
+const PERIOD_MAP = {
+  '1D': { period: '1W',  subtext: 'Intraday neural overlay · Real-time cadence',        apiPeriod: '1W'  },
+  '1W': { period: '1W',  subtext: '7-day momentum trajectory · Daily aggregations',      apiPeriod: '1W'  },
+  '1M': { period: '1M',  subtext: '30-day macro cycle projection · Daily aggregates',     apiPeriod: '1M'  },
+  '1Y': { period: '1Y',  subtext: '52-week regression corridor · Weekly bars',            apiPeriod: '1Y'  },
 };
+
+/** Scale an array of prices into SVG Y coords (0 = top, 400 = bottom). */
+function priceToY(price, minP, maxP, svgH = 380, padPct = 0.05) {
+  const range = maxP - minP || 1;
+  const padded = range * (1 + 2 * padPct);
+  const paddedMin = minP - range * padPct;
+  return svgH - ((price - paddedMin) / padded) * svgH;
+}
+
+/** Build an SVG polyline `points` string from OHLCV rows. */
+function buildPoints(rows) {
+  if (!rows || rows.length === 0) return '';
+  const prices = rows.map((r) => r.close);
+  const minP = Math.min(...prices);
+  const maxP = Math.max(...prices);
+  const w = 1000;
+  return rows
+    .map((r, i) => {
+      const x = (i / Math.max(rows.length - 1, 1)) * w;
+      const y = priceToY(r.close, minP, maxP);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+}
+
+/** Build a closed fill polygon (polyline + bottom edge). */
+function buildFillPoints(rows) {
+  if (!rows || rows.length === 0) return '';
+  const prices = rows.map((r) => r.close);
+  const minP = Math.min(...prices);
+  const maxP = Math.max(...prices);
+  const w = 1000;
+  const linePoints = rows.map((r, i) => {
+    const x = (i / Math.max(rows.length - 1, 1)) * w;
+    const y = priceToY(r.close, minP, maxP);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return [
+    ...linePoints,
+    `1000,380`,
+    `0,380`,
+  ].join(' ');
+}
+
+/** Pick ~5 evenly-spaced labels from the rows based on period. */
+function buildXLabels(rows, period) {
+  if (!rows || rows.length === 0) return [];
+  const fmt = (ts) => {
+    const d = new Date(ts);
+    if (period === '1D' || period === '1W') {
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    if (period === '1M') {
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+  };
+  const n = 5;
+  const step = Math.floor((rows.length - 1) / (n - 1));
+  return Array.from({ length: n }, (_, i) => {
+    const idx = Math.min(i * step, rows.length - 1);
+    return fmt(rows[idx].timestamp);
+  });
+}
 
 export default function Dashboard() {
   const [summary, setSummary] = useState(null);
   const [watchlist, setWatchlist] = useState([]);
   const [signals, setSignals] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [timeframe, setTimeframe] = useState('1D');
+  const [timeframe, setTimeframe] = useState('1M');
+
+  // Chart state
+  const [chartRows, setChartRows] = useState([]);
+  const [chartLoading, setChartLoading] = useState(true);
+  const [chartError, setChartError] = useState(false);
+  const [chartSymbol] = useState('btc');
 
   useEffect(() => {
     let mounted = true;
@@ -65,6 +103,27 @@ export default function Dashboard() {
     });
     return () => { mounted = false; };
   }, []);
+
+  // Fetch chart data whenever timeframe changes
+  useEffect(() => {
+    let mounted = true;
+    setChartLoading(true);
+    setChartError(false);
+    const apiPeriod = PERIOD_MAP[timeframe]?.apiPeriod || '1M';
+    api.getHistorical(chartSymbol, apiPeriod)
+      .then((res) => {
+        if (!mounted) return;
+        setChartRows(res.data || []);
+        setChartLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setChartRows([]);
+        setChartLoading(false);
+        setChartError(true);
+      });
+    return () => { mounted = false; };
+  }, [timeframe, chartSymbol]);
 
   const kpis = summary?.kpis;
 
@@ -108,7 +167,20 @@ export default function Dashboard() {
     },
   ];
 
-  const currentTf = TIMEFRAMES[timeframe] || TIMEFRAMES['1D'];
+  // Computed chart values from real historical data
+  const chartPrices = chartRows.map((r) => r.close);
+  const chartMin = chartPrices.length ? Math.min(...chartPrices) : 0;
+  const chartMax = chartPrices.length ? Math.max(...chartPrices) : 1;
+  const chartRange = chartMax - chartMin || 1;
+  const chartLatestPrice = chartRows.length ? chartRows[chartRows.length - 1].close : null;
+  const chartFirstPrice = chartRows.length ? chartRows[0].close : null;
+  const chartPctChange = (chartFirstPrice && chartLatestPrice)
+    ? (((chartLatestPrice - chartFirstPrice) / chartFirstPrice) * 100)
+    : null;
+  const chartIsPositive = chartPctChange === null || chartPctChange >= 0;
+  const xLabels = buildXLabels(chartRows, timeframe);
+  const currentSubtext = PERIOD_MAP[timeframe]?.subtext || '';
+
 
   return (
     <div className="space-y-6">
@@ -157,9 +229,14 @@ export default function Dashboard() {
                 <h2 className="font-bold text-lg text-on-surface flex items-center gap-2">
                   <span className="material-symbols-outlined text-primary">trending_up</span>
                   BTC/USD Price Trend
+                  {chartRows.length > 0 && (
+                    <span className="text-[10px] font-mono bg-surface-container-low border border-outline-variant px-2 py-0.5 rounded-full text-on-surface-variant ml-1">
+                      {chartRows.length} data points
+                    </span>
+                  )}
                 </h2>
                 <p className="text-xs text-on-surface-variant mt-0.5 font-mono">
-                  {currentTf.subtext}
+                  {currentSubtext}
                 </p>
               </div>
               <div className="flex bg-surface-container-low rounded-lg p-1 border border-outline-variant">
@@ -181,51 +258,117 @@ export default function Dashboard() {
             </div>
 
             <div className="h-72 w-full relative overflow-hidden rounded-lg">
-              <svg className="w-full h-full" viewBox="0 0 1000 400" preserveAspectRatio="none">
-                <defs>
-                  <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#2C6E59" stopOpacity="0.18" />
-                    <stop offset="100%" stopColor="#2C6E59" stopOpacity="0" />
-                  </linearGradient>
-                </defs>
-                {[100, 200, 300].map((y) => (
-                  <line key={y} stroke="#e1e3e0" strokeDasharray="4,4" x1="0" x2="1000" y1={y} y2={y} />
-                ))}
-                <path
-                  d={currentTf.fillPath}
-                  fill="url(#chartGrad)"
-                  className="transition-all duration-500 ease-in-out"
-                />
-                <path
-                  key={timeframe}
-                  className="chart-line transition-all duration-500 ease-in-out"
-                  d={currentTf.linePath}
-                  fill="none"
-                  stroke="#2C6E59"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <div className={`absolute ${currentTf.predOffset} flex flex-col items-end transition-all duration-300 pointer-events-none`}>
-                <div className="bg-primary text-white px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-md font-mono flex items-center gap-1.5">
-                  <span>PRED: {currentTf.predPrice(kpis)}</span>
-                  <span className="text-lime text-[9px] bg-black/25 px-1 py-0.5 rounded font-bold">{currentTf.change}</span>
+              {chartLoading ? (
+                /* Skeleton shimmer while fetching */
+                <div className="w-full h-full bg-surface-container rounded-lg overflow-hidden">
+                  <div className="h-full w-full animate-pulse flex flex-col gap-3 p-4">
+                    {[60, 80, 55, 70, 90, 50].map((h, i) => (
+                      <div key={i} className="bg-primary/10 rounded" style={{ height: `${h}%`, width: `${85 + i * 2}%` }} />
+                    ))}
+                  </div>
                 </div>
-                <div className="w-px h-12 bg-primary/30 mt-1 mx-auto"></div>
-              </div>
+              ) : chartError || chartRows.length === 0 ? (
+                /* Error / empty state */
+                <div className="w-full h-full flex flex-col items-center justify-center text-on-surface-variant gap-2">
+                  <span className="material-symbols-outlined text-4xl opacity-30">show_chart</span>
+                  <p className="text-xs font-mono opacity-50">Historical data unavailable</p>
+                </div>
+              ) : (
+                /* Real SVG chart */
+                <svg className="w-full h-full" viewBox="0 0 1000 400" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2C6E59" stopOpacity="0.22" />
+                      <stop offset="100%" stopColor="#2C6E59" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {/* Horizontal grid lines */}
+                  {[95, 190, 285].map((y) => (
+                    <line key={y} stroke="#e1e3e0" strokeDasharray="4,4" x1="0" x2="1000" y1={y} y2={y} />
+                  ))}
+                  {/* Y-axis price labels */}
+                  {[0, 1, 2, 3].map((i) => {
+                    const price = chartMin + (chartRange * (3 - i)) / 3;
+                    const y = priceToY(price, chartMin, chartMax);
+                    return (
+                      <text
+                        key={i}
+                        x="8"
+                        y={y - 4}
+                        fill="#8a9199"
+                        fontSize="18"
+                        fontFamily="monospace"
+                      >
+                        ${price >= 1000 ? `${(price / 1000).toFixed(1)}k` : price.toFixed(0)}
+                      </text>
+                    );
+                  })}
+                  {/* Gradient fill area */}
+                  <polygon
+                    points={buildFillPoints(chartRows)}
+                    fill="url(#chartGrad)"
+                  />
+                  {/* Price line */}
+                  <polyline
+                    key={timeframe}
+                    points={buildPoints(chartRows)}
+                    fill="none"
+                    stroke="#2C6E59"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ transition: 'points 0.5s ease-in-out' }}
+                  />
+                  {/* Latest price dot */}
+                  {chartRows.length > 0 && (() => {
+                    const last = chartRows[chartRows.length - 1];
+                    const lx = 1000;
+                    const ly = priceToY(last.close, chartMin, chartMax);
+                    return (
+                      <>
+                        <circle cx={lx} cy={ly} r="6" fill="#2C6E59" opacity="0.3" />
+                        <circle cx={lx} cy={ly} r="3.5" fill="#2C6E59" />
+                      </>
+                    );
+                  })()}
+                </svg>
+              )}
+
+              {/* Price change badge — only show when data is loaded */}
+              {!chartLoading && !chartError && chartLatestPrice && (
+                <div className="absolute top-3 right-3 flex flex-col items-end pointer-events-none">
+                  <div className={`px-2.5 py-1 rounded-lg text-[10px] font-bold shadow-md font-mono flex items-center gap-1.5 ${
+                    chartIsPositive ? 'bg-primary text-white' : 'bg-error text-white'
+                  }`}>
+                    <span>LATEST: ${chartLatestPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                    {chartPctChange !== null && (
+                      <span className={`text-[9px] bg-black/25 px-1 py-0.5 rounded font-bold ${
+                        chartIsPositive ? 'text-lime' : 'text-red-200'
+                      }`}>
+                        {chartPctChange >= 0 ? '+' : ''}{chartPctChange.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="w-px h-10 bg-primary/30 mt-1 mx-auto" />
+                </div>
+              )}
             </div>
 
-            {/* Timeframe X-Axis Markers */}
+            {/* X-Axis date labels from real timestamps */}
             <div className="flex justify-between items-center text-[10px] font-mono text-on-surface-variant px-2 pt-3 border-t border-outline-variant/40 mt-1">
-              {currentTf.xLabels.map((lbl, idx) => (
-                <span
-                  key={idx}
-                  className={idx === currentTf.xLabels.length - 1 ? 'font-bold text-primary' : ''}
-                >
-                  {lbl}
-                </span>
-              ))}
+              {chartLoading
+                ? Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-3 w-12 bg-primary/10 rounded animate-pulse" />
+                  ))
+                : xLabels.map((lbl, idx) => (
+                    <span
+                      key={idx}
+                      className={idx === xLabels.length - 1 ? 'font-bold text-primary' : ''}
+                    >
+                      {lbl}
+                    </span>
+                  ))
+              }
             </div>
           </GlassCard>
 

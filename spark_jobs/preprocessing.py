@@ -78,12 +78,18 @@ def add_features(df, symbol):
     print(f"{symbol} final: {df.count():,} rows")
     return df
 
-def save(df, out_path):
-    # Write directly to S3 using Spark (not pandas/local disk,
-    # which would disappear when the cluster terminates).
-    # coalesce(1) forces one output CSV instead of many part-files.
-    df.coalesce(1).write.mode("overwrite").option("header", "true").csv(out_path)
-    print(f"Saved -> {out_path}")
+def save(df, out_path, format="parquet"):
+    """
+    Write distributed data directly to S3 using Spark executors.
+    Removes coalesce(1) bottleneck which forced all cluster data onto a single node,
+    preserving distributed I/O parallelism across EMR / Spark worker nodes.
+    Supports high-performance columnar Parquet (snappy-compressed) and distributed CSV.
+    """
+    if format == "parquet":
+        df.write.mode("overwrite").parquet(out_path)
+    else:
+        df.write.mode("overwrite").option("header", "true").csv(out_path)
+    print(f"Saved distributed dataset ({format}) -> {out_path}")
 
 def main():
     spark = create_spark()
@@ -98,7 +104,7 @@ def main():
         df = load(spark, path, symbol)
         df = clean(df, symbol)
         df = add_features(df, symbol)
-        save(df, f"s3://{BUCKET}/processed/{symbol.lower()}_processed_spark/")
+        save(df, f"s3://{BUCKET}/processed/{symbol.lower()}_processed_spark/", format="parquet")
 
     spark.stop()
     print("\n[SUCCESS] All 4 coins processed successfully")

@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import GlassCard from '../components/shared/GlassCard';
+import { SkeletonCard } from '../components/shared/LoadingState';
+import { api } from '../services/api';
 
-const models = [
+const DEFAULT_MODELS = [
   { name: 'XGBoost', category: 'Ensemble', accuracy: 94.2, f1: '0.92', rmse: '0.041', runtime: '42m · AWS EMR', dotColor: 'bg-primary', isLeader: true },
   { name: 'LSTM', category: 'Deep Learning', accuracy: 91.8, f1: '0.89', rmse: '0.058', runtime: '124m · p3.2xlarge', dotColor: 'bg-lime', isLeader: false },
   { name: 'Random Forest', category: 'Bagging', accuracy: 88.5, f1: '0.86', rmse: '0.072', runtime: '18m · m5.xlarge', dotColor: 'bg-outline', isLeader: false },
   { name: 'Linear Regression', category: 'Baseline', accuracy: 76.4, f1: '0.71', rmse: '0.145', runtime: '2m · Local', dotColor: 'bg-surface-container-high', isLeader: false },
 ];
 
-const features = [
+const DEFAULT_FEATURES = [
   { name: 'Prev Close', weight: 42.8 },
   { name: 'Volume (24h)', weight: 28.4 },
   { name: 'RSI (14)', weight: 15.2 },
@@ -16,7 +18,34 @@ const features = [
   { name: 'Order Book Imbalance', weight: 4.5 },
 ];
 
+const DEFAULT_CV_RUNS = [
+  { name: 'XGB_Production_v2.4', deployed: '4h ago', dot: 'bg-primary', precision: '0.952', recall: '0.938', loss: '0.104', auc: '0.984', badge: 'Production', badgeClass: 'bg-primary/10 text-primary border-primary/20' },
+  { name: 'LSTM_Recurrent_Seq2Seq', deployed: '12h ago', dot: 'bg-lime', precision: '0.914', recall: '0.902', loss: '0.185', auc: '0.955', badge: 'Challenger', badgeClass: 'bg-lime/15 text-charcoal border-lime/30' },
+];
+
 export default function ModelMetrics() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    api.getModelMetrics()
+      .then((res) => {
+        if (!mounted) return;
+        if (res && res.models && res.models.length > 0) {
+          setData(res);
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (mounted) setLoading(false);
+      });
+    return () => { mounted = false; };
+  }, []);
+
+  const models = data?.models?.length ? data.models : DEFAULT_MODELS;
+  const features = data?.featureImportances?.length ? data.featureImportances : DEFAULT_FEATURES;
+  const cvRuns = data?.crossValidationRuns?.length ? data.crossValidationRuns : DEFAULT_CV_RUNS;
   return (
     <div className="space-y-8">
       {/* Model Cards */}
@@ -151,10 +180,7 @@ export default function ModelMetrics() {
               </tr>
             </thead>
             <tbody className="divide-y divide-outline-variant/50">
-              {[
-                { name: 'XGB_Production_v2.4', deployed: '4h ago', dot: 'bg-primary', precision: '0.952', recall: '0.938', loss: '0.104', auc: '0.984', badge: 'Production', badgeClass: 'bg-primary/10 text-primary border-primary/20' },
-                { name: 'LSTM_Recurrent_Seq2Seq', deployed: '12h ago', dot: 'bg-lime', precision: '0.914', recall: '0.902', loss: '0.185', auc: '0.955', badge: 'Challenger', badgeClass: 'bg-lime/15 text-charcoal border-lime/30' },
-              ].map(row => (
+              {cvRuns.map(row => (
                 <tr key={row.name} className="hover:bg-surface-container-low/40 transition-colors duration-150 cursor-pointer">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">

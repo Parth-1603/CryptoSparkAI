@@ -2,10 +2,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 from groq import Groq
 
-# Load the .env file BEFORE initializing the client
+# Ensure .env is loaded from backend directory
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
 load_dotenv()
 
 router = APIRouter()

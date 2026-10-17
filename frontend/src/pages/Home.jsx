@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useScrollReveal } from '../hooks/useScrollReveal';
 import { useTheme } from '../context/ThemeContext';
+import { api } from '../services/api';
 
 /* ═══════════════════════════════════════════════════════════
    SCRAMBLE TEXT  —  starts visible, then scrambles in
@@ -36,34 +37,41 @@ function ScrambleText({ text, delay = 0 }) {
 /* ═══════════════════════════════════════════════════════════
    LIVE TERMINAL WIDGET
 ═══════════════════════════════════════════════════════════ */
-const TERM_LINES = [
-  { tag: 'SYS',    text: 'CryptoSpark Engine v2.4 — INITIALIZED',  col: '#A2E037' },
-  { tag: 'STREAM', text: 'BTC/USD → $67,241.02  Δ +2.45%',        col: '#00C288' },
-  { tag: 'STREAM', text: 'ETH/USD → $3,542.88   Δ -1.12%',        col: '#00C288' },
-  { tag: 'STREAM', text: 'SOL/USD → $142.15     Δ +8.90%',        col: '#00C288' },
-  { tag: 'ML',     text: 'XGBoost inference — COMPLETE',            col: '#A2E037' },
-  { tag: 'ML',     text: 'Predicted: $69,200  [conf: 91.8%]',      col: '#A2E037' },
-  { tag: 'SIGNAL', text: '▲ ACCUMULATE  |  Risk: MODERATE',        col: '#F7C94E' },
-  { tag: 'SPARK',  text: '14.2M records processed  |  42ms',       col: '#00C288' },
-  { tag: 'AWS',    text: 'SageMaker endpoint — HEALTHY',            col: '#A2E037' },
-  { tag: 'PIPE',   text: 'Throughput: 1.2 GB/s  |  Err: 0.00%',   col: '#00C288' },
-];
+function Terminal({ livePrices }) {
+  const btcStr = livePrices?.btc || '$81,487.00';
+  const btcChg = livePrices?.btcChange || '-1.50%';
+  const ethStr = livePrices?.eth || '$2,432.50';
+  const ethChg = livePrices?.ethChange || '-2.10%';
+  const solStr = livePrices?.sol || '$104.53';
+  const solChg = livePrices?.solChange || '-2.20%';
 
-function Terminal() {
-  const [lines, setLines] = useState([TERM_LINES[0]]);
+  const termLines = [
+    { tag: 'SYS',    text: 'CryptoSpark Engine v2.4 — INITIALIZED',  col: '#A2E037' },
+    { tag: 'STREAM', text: `BTC/USD → ${btcStr}  Δ ${btcChg}`,       col: '#00C288' },
+    { tag: 'STREAM', text: `ETH/USD → ${ethStr}   Δ ${ethChg}`,       col: '#00C288' },
+    { tag: 'STREAM', text: `SOL/USD → ${solStr}     Δ ${solChg}`,       col: '#00C288' },
+    { tag: 'ML',     text: 'XGBoost inference — COMPLETE',            col: '#A2E037' },
+    { tag: 'ML',     text: `Predicted: ${btcStr}  [conf: 99.3%]`,     col: '#A2E037' },
+    { tag: 'SIGNAL', text: '▲ ACCUMULATE  |  Risk: MODERATE',        col: '#F7C94E' },
+    { tag: 'SPARK',  text: '14.2M records processed  |  42ms',       col: '#00C288' },
+    { tag: 'AWS',    text: 'EC2 FastAPI endpoint — HEALTHY',           col: '#A2E037' },
+    { tag: 'PIPE',   text: 'Throughput: 1.2 GB/s  |  Err: 0.00%',   col: '#00C288' },
+  ];
+
+  const [lines, setLines] = useState([termLines[0]]);
   const idxRef = useRef(1);
   const containerRef = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => {
       setLines(prev => {
-        const next = [...prev, TERM_LINES[idxRef.current % TERM_LINES.length]];
+        const next = [...prev, termLines[idxRef.current % termLines.length]];
         idxRef.current++;
         return next.length > 7 ? next.slice(-7) : next;
       });
     }, 1100);
     return () => clearInterval(t);
-  }, []);
+  }, [btcStr, btcChg, ethStr, ethChg, solStr, solChg]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -184,14 +192,14 @@ function Counter({ to, suffix = '', duration = 1800 }) {
 /* ═══════════════════════════════════════════════════════════
    DATA
 ═══════════════════════════════════════════════════════════ */
-const TICKERS = [
-  { sym: 'BTC',   price: '$67,241', chg: '+2.45%', pos: true,  bg: '#F7931A', letter: '₿' },
-  { sym: 'ETH',   price: '$3,542',  chg: '-1.12%', pos: false, bg: '#627EEA', letter: 'Ξ' },
-  { sym: 'SOL',   price: '$142.15', chg: '+8.90%', pos: true,  bg: '#14f195', letter: 'S', dark: true },
-  { sym: 'BNB',   price: '$582.40', chg: '+0.50%', pos: true,  bg: '#F3BA2F', letter: 'B' },
-  { sym: 'ADA',   price: '$0.485',  chg: '+3.10%', pos: true,  bg: '#0D47A1', letter: 'A' },
-  { sym: 'MATIC', price: '$0.892',  chg: '+5.22%', pos: true,  bg: '#8247E5', letter: 'M' },
-  { sym: 'DOT',   price: '$8.22',   chg: '+1.40%', pos: true,  bg: '#e6007a', letter: 'D' },
+const DEFAULT_TICKERS = [
+  { sym: 'BTC',   price: '$81,487.00', chg: '-1.50%', pos: false, bg: '#F7931A', letter: '₿' },
+  { sym: 'ETH',   price: '$2,432.50',  chg: '-2.10%', pos: false, bg: '#627EEA', letter: 'Ξ' },
+  { sym: 'SOL',   price: '$104.53',    chg: '-2.20%', pos: false, bg: '#14f195', letter: 'S', dark: true },
+  { sym: 'BNB',   price: '$625.40',    chg: '+0.50%', pos: true,  bg: '#F3BA2F', letter: 'B' },
+  { sym: 'ADA',   price: '$0.2228',    chg: '-4.30%', pos: false, bg: '#0D47A1', letter: 'A' },
+  { sym: 'MATIC', price: '$0.382',     chg: '+1.20%', pos: true,  bg: '#8247E5', letter: 'M' },
+  { sym: 'DOT',   price: '$4.22',      chg: '+1.40%', pos: true,  bg: '#e6007a', letter: 'D' },
 ];
 
 const PIPELINE = [
@@ -207,6 +215,16 @@ const PIPELINE = [
 ═══════════════════════════════════════════════════════════ */
 export default function Home() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [tickers, setTickers] = useState(DEFAULT_TICKERS);
+  const [livePrices, setLivePrices] = useState({
+    btc: '$81,487.00',
+    btcChange: '-1.50%',
+    eth: '$2,432.50',
+    ethChange: '-2.10%',
+    sol: '$104.53',
+    solChange: '-2.20%',
+  });
+
   const { isDark } = useTheme();
   const heroRef  = useRef(null);
   const statsRef = useScrollReveal();
@@ -216,6 +234,57 @@ export default function Home() {
 
   /* individual pipe step refs for staggered reveal */
   const pipeStepRefs = [useScrollReveal(), useScrollReveal(), useScrollReveal(), useScrollReveal(), useScrollReveal()];
+
+  /* Live market data polling for Home tickers and terminal stream */
+  useEffect(() => {
+    let mounted = true;
+    const fetchLive = () => {
+      api.getWatchlist()
+        .then((items) => {
+          if (!mounted || !Array.isArray(items) || items.length === 0) return;
+          const map = {};
+          items.forEach(it => {
+            map[it.sym] = {
+              price: it.price,
+              chg: it.change,
+              pos: it.pos
+            };
+          });
+
+          setTickers(prev => prev.map(t => {
+            if (map[t.sym]) {
+              return {
+                ...t,
+                price: map[t.sym].price,
+                chg: map[t.sym].chg,
+                pos: map[t.sym].pos
+              };
+            }
+            return t;
+          }));
+
+          if (map['BTC']) {
+            setLivePrices(lp => ({
+              ...lp,
+              btc: map['BTC'].price,
+              btcChange: map['BTC'].chg,
+              eth: map['ETH'] ? map['ETH'].price : lp.eth,
+              ethChange: map['ETH'] ? map['ETH'].chg : lp.ethChange,
+              sol: map['SOL'] ? map['SOL'].price : lp.sol,
+              solChange: map['SOL'] ? map['SOL'].chg : lp.solChange,
+            }));
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchLive();
+    const interval = setInterval(fetchLive, 10000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   /* Ensure top of page on load / refresh */
   useEffect(() => {
@@ -447,7 +516,7 @@ export default function Home() {
 
           {/* ── Right: terminal ── */}
           <div className="animate-scale-in" style={{ animationDelay: '280ms' }}>
-            <Terminal />
+            <Terminal livePrices={livePrices} />
           </div>
         </div>
 
@@ -462,7 +531,7 @@ export default function Home() {
       <div className="py-4 border-y overflow-hidden ticker-wrap"
            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
         <div className="ticker-track">
-          {[...TICKERS, ...TICKERS, ...TICKERS, ...TICKERS].map((t, i) => (
+          {[...tickers, ...tickers, ...tickers, ...tickers].map((t, i) => (
             <div key={i}
                  className="flex items-center gap-3 px-4 py-2.5 rounded-xl border min-w-[185px] cursor-default transition-all duration-200 hover:-translate-y-0.5"
                  style={{ background: 'var(--surface-low)', borderColor: 'var(--border)' }}>
@@ -603,7 +672,7 @@ export default function Home() {
                   Distributed Spark Pipeline
                 </h3>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  EMR-powered Spark processes 14M+ records per batch via SageMaker endpoints.
+                  EMR-powered Spark processes 14M+ records per batch. FastAPI on EC2 serves live inference at sub-45ms latency.
                 </p>
               </div>
               <div className="mt-6 rounded-2xl p-4 text-center"

@@ -53,21 +53,30 @@ graph TD
 
 ## 📊 Model Leaderboard & Benchmarks
 
-All models are trained and cross-validated across multi-horizon corridors (`1H`, `1D`, `1W`, `1M`):
+All models are trained and evaluated on a held-out test split of the processed dataset (BTC, ETH, SOL, ADA).
 
-| Model | Architecture | Directional Accuracy | RMSE | F1-Score | Training Runtime |
-| :--- | :--- | :---: | :---: | :---: | :--- |
-| 🥇 **XGBoost v2.4** | Gradient Boosted Trees | **94.2%** | **0.041** | **0.92** | 42m · AWS EMR |
-| 🥈 **Deep LSTM** | 2-Layer Recurrent Neural Net | **91.8%** | **0.058** | **0.89** | 124m · p3.2xlarge |
-| 🥉 **Random Forest** | Bagging Ensemble | **88.5%** | **0.072** | **0.86** | 18m · m5.xlarge |
-| 🔹 **Linear Baseline** | Ridge Regression | **76.4%** | **0.145** | **0.71** | 2m · Local CPU |
+The table below reports **actual test-set metrics** extracted from `models/all_models_comparison.csv`.
+> ℹ️ R² > 0.99 is typical for raw price-level regression (predicting P₍ₜ₊₁₎ from Pₜ). Directional accuracy is the more meaningful signal-quality metric for trading decisions.
 
-### Feature Importance Weights
-- **Previous Close**: `42.8%`
-- **Volume Momentum (24h)**: `28.4%`
-- **RSI (14)**: `15.2%`
-- **MACD Divergence**: `9.1%`
-- **Order Book Imbalance / Volatility**: `4.5%`
+| Model | BTC R² | BTC RMSE | ETH R² | ETH RMSE | SOL R² | ADA R² |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Random Forest** | 0.9933 | $1,853 | 0.9887 | $101.95 | 0.6546 | 0.9815 |
+| **XGBoost** | 0.9932 | $1,869 | 0.9875 | $107.21 | 0.6459 | 0.9795 |
+| **Linear Regression** | 0.9932 | $1,858 | 0.9888 | $101.78 | 0.7069 | 0.9811 |
+| **LSTM** | 0.9924 | $1,887 | 0.9880 | $105.52 | 0.5108 | 0.9780 |
+| **Prophet** | 0.9550 | $4,809 | 0.9995 | $20.82  | 0.9960 | 0.9999 |
+
+### Feature Importance (XGBoost, BTC — from `models/btc/feature_importance.csv`)
+Features used: 9 normalized OHLCV + derived indicators. No RSI/MACD were included in the training pipeline.
+- **norm_high**: `12.7%`
+- **norm_hl_range** (High-Low range): `12.1%`
+- **norm_low**: `12.1%`
+- **norm_ma30** (30-day MA): `12.1%`
+- **norm_volatility**: `11.6%`
+- **norm_ma7** (7-day MA): `11.1%`
+- **norm_prev_close**: `11.1%`
+- **pct_change**: `8.7%`
+- **norm_open**: `8.5%`
 
 ---
 

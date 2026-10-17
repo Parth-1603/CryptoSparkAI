@@ -79,6 +79,15 @@ export const api = {
       topFeatures: predictionData.topFeatures,
     }),
 
+  // ── Historical OHLCV ────────────────────────────────────────────────
+  /**
+   * Fetch historical OHLCV data for a symbol.
+   * @param {string} symbol e.g. "btc" | "eth" | "sol" | "ada"
+   * @param {string} period e.g. "1W" | "1M" | "6M" | "1Y" | "ALL"
+   */
+  getHistorical: (symbol, period = '1M') =>
+    request('GET', `/historical/${symbol.toLowerCase()}?period=${period}`),
+
   // ── Pipeline Health ─────────────────────────────────────────────────
   /**
    * Returns end-to-end component health (models, datasets, APIs).

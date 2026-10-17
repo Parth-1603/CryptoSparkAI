@@ -143,7 +143,14 @@ export default function Predictions() {
                 onChange={e => setAlgorithm(e.target.value)}
                 className="w-full bg-surface-container-low border border-outline-variant rounded-lg p-3 text-sm cursor-pointer"
               >
-                {['XGBoost (Gradient Boosting)', 'LSTM (Recurrent Neural Network)', 'Prophet (Additive Model)', 'Ensemble (Hybrid V3)'].map(o => <option key={o}>{o}</option>)}
+                {[
+                  'XGBoost (Gradient Boosting)',
+                  'Random Forest (Bagging Ensemble)',
+                  'Linear Regression (Statistical Baseline)',
+                  'LSTM (Recurrent Neural Network)',
+                  'Ensemble (Hybrid V3)',
+                  'Prophet (Additive Model)'
+                ].map(o => <option key={o} value={o}>{o}</option>)}
               </select>
             </div>
 
