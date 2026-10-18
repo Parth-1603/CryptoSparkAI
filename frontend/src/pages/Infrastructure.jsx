@@ -91,76 +91,193 @@ export default function Infrastructure() {
       )}
     </div>
 
-      {/* Architecture Flow Map — static diagram, not data-driven */}
-      <GlassCard className="rounded-xl p-8 overflow-hidden relative min-h-[380px] flex flex-col justify-center">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-20 h-20 bg-surface-container-low rounded-2xl flex items-center justify-center border border-outline-variant hover:border-primary transition-all">
-              <span className="material-symbols-outlined text-primary text-4xl">inventory_2</span>
+      {/* Architecture Flow Map — Animated AWS Pipeline Stream */}
+      <GlassCard className="rounded-xl p-6 md:p-8 overflow-hidden relative min-h-[400px] flex flex-col justify-center bg-gradient-to-b from-surface/40 via-surface/10 to-surface/40 border border-outline-variant/60 shadow-lg">
+        {/* Ambient background glow */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 h-28 bg-primary/5 blur-3xl pointer-events-none rounded-full" />
+
+        {/* Section Header with Live Stream Beacon */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10 pb-4 border-b border-outline-variant/60 relative z-10">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-primary text-2xl">
+                hub
+              </span>
+              <h3 className="font-title-lg text-lg md:text-xl font-bold text-on-surface tracking-tight">
+                AWS Distributed Pipeline Architecture
+              </h3>
             </div>
-            <div className="text-center">
-              <p className="font-title-md text-title-md text-on-surface font-bold">Amazon S3</p>
-              <p className="font-label-sm text-xs text-on-surface-variant">Data Lake</p>
+            <p className="text-on-surface-variant text-xs mt-1">
+              Continuous high-throughput streaming from Amazon S3 to PySpark distributed engine & sub-second REST API serving
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-bold bg-primary/10 border border-primary/30 text-primary shadow-sm backdrop-blur-sm">
+              <span className="w-2 h-2 rounded-full bg-lime animate-ping" />
+              PIPELINE STREAMING • HEALTHY
+            </span>
+          </div>
+        </div>
+
+        {/* Flow Map Nodes & Stream Packets */}
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 md:gap-2 relative z-10 my-2">
+          {/* Node 1: Amazon S3 */}
+          <div className="relative group flex flex-col items-center">
+            <div className="data-flow-node-ping" style={{ animationDelay: '0s' }} />
+            <div className="w-20 h-20 md:w-22 md:h-22 bg-surface-container-low rounded-2xl flex flex-col items-center justify-center border border-outline-variant group-hover:border-primary group-hover:shadow-[0_0_24px_rgba(162,224,55,0.3)] transition-all duration-300 relative z-10">
+              <span className="material-symbols-outlined text-primary text-3xl md:text-4xl group-hover:scale-110 transition-transform duration-300">
+                inventory_2
+              </span>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime mt-1 animate-pulse" />
+            </div>
+            <div className="text-center mt-3">
+              <p className="font-title-md text-sm md:text-base text-on-surface font-bold tracking-tight">Amazon S3</p>
+              <p className="font-label-sm text-[11px] text-primary font-medium">Data Lake</p>
+              <div className="mt-1 px-2 py-0.5 rounded bg-surface-container-high/60 border border-outline-variant/60 inline-block">
+                <p className="text-[10px] text-on-surface-variant font-mono">5.2M+ Raw Ticks</p>
+              </div>
             </div>
           </div>
 
-          <div className="hidden md:block flex-1 h-0.5 bg-primary/30 rounded-full"></div>
-          <span className="md:hidden material-symbols-outlined text-primary">arrow_downward</span>
-
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-20 h-20 bg-surface-container-low rounded-2xl flex items-center justify-center border border-outline-variant hover:border-primary transition-all">
-              <span className="material-symbols-outlined text-primary text-4xl">dns</span>
+          {/* Connector 1 */}
+          <div className="hidden md:flex flex-1 items-center px-1">
+            <div className="aws-pipe-segment w-full">
+              <div className="aws-pipe-packet" style={{ animationDelay: '0s' }} />
+              <div className="aws-pipe-packet aws-pipe-packet-delayed" style={{ animationDelay: '1.1s' }} />
             </div>
-            <div className="text-center">
-              <p className="font-title-md text-title-md text-on-surface font-bold">Amazon EMR</p>
-              <p className="font-label-sm text-xs text-on-surface-variant">Spark Engine</p>
+          </div>
+          <div className="md:hidden flex flex-col items-center py-1">
+            <div className="aws-pipe-vertical">
+              <div className="aws-pipe-vertical-packet" />
             </div>
           </div>
 
-          <div className="hidden md:block flex-1 h-0.5 bg-lime rounded-full"></div>
-          <span className="md:hidden material-symbols-outlined text-primary">arrow_downward</span>
-
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-20 h-20 bg-surface-container-low rounded-2xl flex items-center justify-center border border-outline-variant hover:border-primary transition-all">
-              <span className="material-symbols-outlined text-primary text-4xl">terminal</span>
+          {/* Node 2: Amazon EMR */}
+          <div className="relative group flex flex-col items-center">
+            <div className="data-flow-node-ping" style={{ animationDelay: '0.6s' }} />
+            <div className="w-20 h-20 md:w-22 md:h-22 bg-surface-container-low rounded-2xl flex flex-col items-center justify-center border border-outline-variant group-hover:border-primary group-hover:shadow-[0_0_24px_rgba(162,224,55,0.3)] transition-all duration-300 relative z-10">
+              <span className="material-symbols-outlined text-primary text-3xl md:text-4xl group-hover:scale-110 transition-transform duration-300">
+                dns
+              </span>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime mt-1 animate-pulse" />
             </div>
-            <div className="text-center">
-              <p className="font-title-md text-title-md text-on-surface font-bold">PySpark</p>
-              <p className="font-label-sm text-xs text-on-surface-variant">ETL Layer</p>
-            </div>
-          </div>
-
-          <div className="hidden md:block flex-1 h-0.5 bg-primary/30 rounded-full"></div>
-          <span className="md:hidden material-symbols-outlined text-primary">arrow_downward</span>
-
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-20 h-20 bg-surface-container-low rounded-2xl flex items-center justify-center border border-outline-variant hover:border-primary transition-all">
-              <span className="material-symbols-outlined text-primary text-4xl">database</span>
-            </div>
-            <div className="text-center">
-              <p className="font-title-md text-title-md text-on-surface font-bold">Feature Store</p>
-              <p className="font-label-sm text-xs text-on-surface-variant">Offline Store</p>
+            <div className="text-center mt-3">
+              <p className="font-title-md text-sm md:text-base text-on-surface font-bold tracking-tight">Amazon EMR</p>
+              <p className="font-label-sm text-[11px] text-primary font-medium">Spark Engine</p>
+              <div className="mt-1 px-2 py-0.5 rounded bg-surface-container-high/60 border border-outline-variant/60 inline-block">
+                <p className="text-[10px] text-on-surface-variant font-mono">emr-7.14.0</p>
+              </div>
             </div>
           </div>
 
-          <div className="hidden md:block flex-1 h-0.5 bg-lime rounded-full"></div>
-          <span className="md:hidden material-symbols-outlined text-primary">arrow_downward</span>
-
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-24 h-24 bg-surface rounded-full flex items-center justify-center border-2 border-primary shadow-md">
-              <span className="material-symbols-outlined text-primary text-5xl">api</span>
+          {/* Connector 2 */}
+          <div className="hidden md:flex flex-1 items-center px-1">
+            <div className="aws-pipe-segment w-full">
+              <div className="aws-pipe-packet" style={{ animationDelay: '0.4s' }} />
+              <div className="aws-pipe-packet aws-pipe-packet-delayed" style={{ animationDelay: '1.5s' }} />
             </div>
-            <div className="text-center">
-              <p className="font-title-md text-title-md text-on-surface font-bold">Prediction API</p>
-              <p className="font-label-sm text-xs text-on-surface-variant">Live Inference</p>
+          </div>
+          <div className="md:hidden flex flex-col items-center py-1">
+            <div className="aws-pipe-vertical">
+              <div className="aws-pipe-vertical-packet" />
+            </div>
+          </div>
+
+          {/* Node 3: PySpark */}
+          <div className="relative group flex flex-col items-center">
+            <div className="data-flow-node-ping" style={{ animationDelay: '1.2s' }} />
+            <div className="w-20 h-20 md:w-22 md:h-22 bg-surface-container-low rounded-2xl flex flex-col items-center justify-center border border-outline-variant group-hover:border-primary group-hover:shadow-[0_0_24px_rgba(162,224,55,0.3)] transition-all duration-300 relative z-10">
+              <span className="material-symbols-outlined text-primary text-3xl md:text-4xl group-hover:scale-110 transition-transform duration-300">
+                terminal
+              </span>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime mt-1 animate-pulse" />
+            </div>
+            <div className="text-center mt-3">
+              <p className="font-title-md text-sm md:text-base text-on-surface font-bold tracking-tight">PySpark</p>
+              <p className="font-label-sm text-[11px] text-primary font-medium">ETL Layer</p>
+              <div className="mt-1 px-2 py-0.5 rounded bg-surface-container-high/60 border border-outline-variant/60 inline-block">
+                <p className="text-[10px] text-on-surface-variant font-mono">13 Rolling Features</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Connector 3 */}
+          <div className="hidden md:flex flex-1 items-center px-1">
+            <div className="aws-pipe-segment w-full">
+              <div className="aws-pipe-packet" style={{ animationDelay: '0.8s' }} />
+              <div className="aws-pipe-packet aws-pipe-packet-delayed" style={{ animationDelay: '1.9s' }} />
+            </div>
+          </div>
+          <div className="md:hidden flex flex-col items-center py-1">
+            <div className="aws-pipe-vertical">
+              <div className="aws-pipe-vertical-packet" />
+            </div>
+          </div>
+
+          {/* Node 4: Feature Store */}
+          <div className="relative group flex flex-col items-center">
+            <div className="data-flow-node-ping" style={{ animationDelay: '1.8s' }} />
+            <div className="w-20 h-20 md:w-22 md:h-22 bg-surface-container-low rounded-2xl flex flex-col items-center justify-center border border-outline-variant group-hover:border-primary group-hover:shadow-[0_0_24px_rgba(162,224,55,0.3)] transition-all duration-300 relative z-10">
+              <span className="material-symbols-outlined text-primary text-3xl md:text-4xl group-hover:scale-110 transition-transform duration-300">
+                database
+              </span>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime mt-1 animate-pulse" />
+            </div>
+            <div className="text-center mt-3">
+              <p className="font-title-md text-sm md:text-base text-on-surface font-bold tracking-tight">Feature Store</p>
+              <p className="font-label-sm text-[11px] text-primary font-medium">Offline Store</p>
+              <div className="mt-1 px-2 py-0.5 rounded bg-surface-container-high/60 border border-outline-variant/60 inline-block">
+                <p className="text-[10px] text-on-surface-variant font-mono">Parquet Partitioned</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Connector 4 */}
+          <div className="hidden md:flex flex-1 items-center px-1">
+            <div className="aws-pipe-segment w-full">
+              <div className="aws-pipe-packet" style={{ animationDelay: '1.2s' }} />
+              <div className="aws-pipe-packet aws-pipe-packet-delayed" style={{ animationDelay: '2.3s' }} />
+            </div>
+          </div>
+          <div className="md:hidden flex flex-col items-center py-1">
+            <div className="aws-pipe-vertical">
+              <div className="aws-pipe-vertical-packet" />
+            </div>
+          </div>
+
+          {/* Node 5: Prediction API */}
+          <div className="relative group flex flex-col items-center">
+            <div className="data-flow-node-ping" style={{ animationDelay: '2.4s' }} />
+            <div className="w-20 h-20 md:w-22 md:h-22 bg-surface rounded-2xl flex flex-col items-center justify-center border-2 border-primary group-hover:shadow-[0_0_28px_rgba(44,110,89,0.5)] transition-all duration-300 relative z-10">
+              <span className="material-symbols-outlined text-primary text-3xl md:text-4xl group-hover:scale-110 transition-transform duration-300">
+                api
+              </span>
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-lime mt-1 animate-pulse" />
+            </div>
+            <div className="text-center mt-3">
+              <p className="font-title-md text-sm md:text-base text-on-surface font-bold tracking-tight">Prediction API</p>
+              <p className="font-label-sm text-[11px] text-primary font-medium">Live Inference</p>
+              <div className="mt-1 px-2 py-0.5 rounded bg-surface-container-high/60 border border-outline-variant/60 inline-block">
+                <p className="text-[10px] text-on-surface-variant font-mono">FastAPI &lt;42ms</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="mt-10 flex justify-center gap-8 text-on-surface-variant font-label-md text-xs">
-          <div className="flex items-center gap-2"><span className="w-3 h-3 bg-primary rounded-full"></span>Data Stream</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 bg-lime rounded-full"></span>Compute Path</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-3 bg-tertiary-fixed-dim rounded-full"></span>Inference Output</div>
+        {/* Dynamic Legend */}
+        <div className="mt-10 pt-4 border-t border-outline-variant/60 flex flex-wrap justify-center items-center gap-6 sm:gap-10 text-on-surface-variant font-label-md text-xs relative z-10">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 bg-primary rounded-full animate-pulse" />
+            <span>S3 Ingestion Stream (5.2M+ Rows)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 bg-lime rounded-full animate-pulse" style={{ animationDelay: '0.6s' }} />
+            <span>EMR PySpark Distributed Compute</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 bg-mint-green rounded-full animate-pulse" style={{ animationDelay: '1.2s' }} />
+            <span>Sub-50ms REST Model Serving</span>
+          </div>
         </div>
       </GlassCard>
 

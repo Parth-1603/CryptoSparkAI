@@ -203,20 +203,225 @@
 .delay-6  { transition-delay: 410ms !important; }
 
 /* ═══════════════════════════════════════════════════════════
-   TICKER
+   TICKER & MARQUEE ANIMATIONS
 ═══════════════════════════════════════════════════════════ */
-.ticker-wrap {
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, black 8%, black 92%, transparent 100%);
+@keyframes marquee {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
 }
+
+@keyframes marquee-reverse {
+  0% {
+    transform: translate3d(-50%, 0, 0);
+  }
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.ticker-wrap {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, black 6%, black 94%, transparent 100%);
+  mask-image: linear-gradient(90deg, transparent 0%, black 6%, black 94%, transparent 100%);
+}
+
 .ticker-track {
   display: flex;
-  gap: 16px;
+  width: max-content;
+  flex-shrink: 0;
   white-space: nowrap;
-  animation: marquee 28s linear infinite;
+  animation: marquee 35s linear infinite;
   will-change: transform;
 }
-.ticker-track:hover { animation-play-state: paused; }
+
+.ticker-reverse {
+  display: flex;
+  width: max-content;
+  flex-shrink: 0;
+  white-space: nowrap;
+  animation: marquee-reverse 35s linear infinite;
+  will-change: transform;
+}
+
+.ticker-track:hover,
+.ticker-reverse:hover {
+  animation-play-state: paused;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DATA FLOW DIAGRAM ANIMATIONS
+═══════════════════════════════════════════════════════════ */
+@keyframes flow-travel-h {
+  0% {
+    left: 0%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    left: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes flow-beam {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes node-pulse-ring {
+  0% {
+    transform: scale(0.96);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+}
+
+.data-flow-connector {
+  position: absolute;
+  top: 38px;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    rgba(44, 110, 89, 0.25) 0%,
+    rgba(44, 110, 89, 0.6) 20%,
+    rgba(162, 224, 55, 0.95) 50%,
+    rgba(44, 110, 89, 0.6) 80%,
+    rgba(44, 110, 89, 0.25) 100%
+  );
+  background-size: 200% 100%;
+  animation: flow-beam 3.5s linear infinite;
+  box-shadow: 0 0 12px rgba(162, 224, 55, 0.35);
+  pointer-events: none;
+}
+
+.data-flow-pulse {
+  position: absolute;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #A2E037;
+  box-shadow: 0 0 16px 4px #A2E037, 0 0 28px 8px rgba(44, 110, 89, 0.85);
+  animation: flow-travel-h 3.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.data-flow-pulse-delayed {
+  animation-delay: 1.6s;
+}
+
+.data-flow-node-ping {
+  position: absolute;
+  inset: -6px;
+  border-radius: 1.25rem;
+  border: 1.5px solid rgba(162, 224, 55, 0.45);
+  animation: node-pulse-ring 2.8s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AWS PIPELINE SECTION ANIMATIONS
+═══════════════════════════════════════════════════════════ */
+.aws-pipe-segment {
+  position: relative;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    rgba(44, 110, 89, 0.25) 0%,
+    rgba(162, 224, 55, 0.85) 50%,
+    rgba(44, 110, 89, 0.25) 100%
+  );
+  background-size: 200% 100%;
+  animation: flow-beam 2.4s linear infinite;
+  box-shadow: 0 0 10px rgba(162, 224, 55, 0.35);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.aws-pipe-packet {
+  position: absolute;
+  top: -4px;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background: #A2E037;
+  box-shadow: 0 0 14px 4px #A2E037, 0 0 24px 6px rgba(44, 110, 89, 0.85);
+  animation: flow-travel-h 2.2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
+.aws-pipe-packet-delayed {
+  animation-delay: 1.1s;
+}
+
+@keyframes flow-travel-v {
+  0% {
+    top: 0%;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
+  }
+}
+
+.aws-pipe-vertical {
+  position: relative;
+  width: 3px;
+  height: 36px;
+  background: linear-gradient(
+    180deg,
+    rgba(44, 110, 89, 0.3) 0%,
+    rgba(162, 224, 55, 0.8) 50%,
+    rgba(44, 110, 89, 0.3) 100%
+  );
+  border-radius: 9999px;
+  overflow: hidden;
+  box-shadow: 0 0 8px rgba(162, 224, 55, 0.35);
+}
+
+.aws-pipe-vertical-packet {
+  position: absolute;
+  left: -3px;
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  background: #A2E037;
+  box-shadow: 0 0 12px 3px #A2E037;
+  animation: flow-travel-v 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+
 
 /* ═══════════════════════════════════════════════════════════
    HERO SECTION
@@ -378,16 +583,7 @@ input:focus, select:focus, textarea:focus {
   transition: font-variation-settings 0.25s ease;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   MARQUEE (reverse direction)
-═══════════════════════════════════════════════════════════ */
-.ticker-reverse {
-  animation: marquee-reverse 24s linear infinite !important;
-}
-@keyframes marquee-reverse {
-  from { transform: translateX(-50%); }
-  to   { transform: translateX(0); }
-}
+
 
 /* ═══════════════════════════════════════════════════════════
    HERO — CURSOR GLOW

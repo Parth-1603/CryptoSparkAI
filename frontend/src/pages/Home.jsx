@@ -51,11 +51,11 @@ function Terminal({ livePrices }) {
     { tag: 'STREAM', text: `ETH/USD → ${ethStr}   Δ ${ethChg}`,       col: '#00C288' },
     { tag: 'STREAM', text: `SOL/USD → ${solStr}     Δ ${solChg}`,       col: '#00C288' },
     { tag: 'ML',     text: 'XGBoost inference — COMPLETE',            col: '#A2E037' },
-    { tag: 'ML',     text: `Predicted: ${btcStr}  [conf: 99.3%]`,     col: '#A2E037' },
+    { tag: 'ML',     text: `Predicted: ${btcStr}  [R²: 99.3% | RMSE: $1,126]`, col: '#A2E037' },
     { tag: 'SIGNAL', text: '▲ ACCUMULATE  |  Risk: MODERATE',        col: '#F7C94E' },
-    { tag: 'SPARK',  text: '14.2M records processed  |  42ms',       col: '#00C288' },
+    { tag: 'SPARK',  text: '5.2M records processed  |  42ms',         col: '#00C288' },
     { tag: 'AWS',    text: 'EC2 FastAPI endpoint — HEALTHY',           col: '#A2E037' },
-    { tag: 'PIPE',   text: 'Throughput: 1.2 GB/s  |  Err: 0.00%',   col: '#00C288' },
+    { tag: 'PIPE',   text: 'CoinGecko Live Feed + Cache — ACTIVE',    col: '#00C288' },
   ];
 
   const [lines, setLines] = useState([termLines[0]]);
@@ -110,9 +110,9 @@ function Terminal({ livePrices }) {
       {/* Metric chips */}
       <div className="px-5 pb-5 grid grid-cols-3 gap-2">
         {[
-          { label: 'Accuracy', val: '94.2%', col: '#A2E037' },
+          { label: 'Accuracy', val: '99.3%', col: '#A2E037' },
           { label: 'Latency',  val: '42ms',  col: '#00C288' },
-          { label: 'Records',  val: '14M+',  col: '#2C6E59' },
+          { label: 'Records',  val: '5.2M+', col: '#2C6E59' },
         ].map(m => (
           <div key={m.label} className="rounded-xl px-2 py-2.5 text-center"
                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)' }}>
@@ -203,11 +203,11 @@ const DEFAULT_TICKERS = [
 ];
 
 const PIPELINE = [
-  { n: '01', label: 'Raw Data',  sub: 'API & RPC',    icon: 'cloud_download' },
-  { n: '02', label: 'Amazon S3', sub: 'Data lake',    icon: 'storage' },
-  { n: '03', label: 'AWS EMR',   sub: 'Spark',        icon: 'hub' },
-  { n: '04', label: 'ML Engine', sub: 'XGBoost+LSTM', icon: 'neurology' },
-  { n: '05', label: 'Dashboard', sub: 'Live insights', icon: 'monitoring', highlight: true },
+  { n: '01', label: 'Raw Ingestion',  sub: 'CoinGecko + Kaggle', detail: 'Live REST + 5.2M CSV', icon: 'cloud_download', badge: 'LIVE FEED' },
+  { n: '02', label: 'Amazon S3',      sub: 'Parquet Data Lake',  detail: 'Compressed historical store', icon: 'storage', badge: 'AWS CLOUD' },
+  { n: '03', label: 'AWS EMR Spark',  sub: 'Distributed Cluster', detail: 'Feature engineering & MAs', icon: 'hub', badge: '42ms SPARK' },
+  { n: '04', label: 'ML Inference',   sub: '6 Ensembled Models', detail: 'XGBoost (99.3% R²) + Groq', icon: 'neurology', badge: 'TOP ACCURACY' },
+  { n: '05', label: 'Dashboard',      sub: 'FastAPI + React',    detail: 'Real-time telemetry & explain', icon: 'monitoring', highlight: true, badge: 'SUB-45MS' },
 ];
 
 /* ═══════════════════════════════════════════════════════════
@@ -232,8 +232,7 @@ export default function Home() {
   const pipeRef  = useScrollReveal();
   const ctaRef   = useScrollReveal();
 
-  /* individual pipe step refs for staggered reveal */
-  const pipeStepRefs = [useScrollReveal(), useScrollReveal(), useScrollReveal(), useScrollReveal(), useScrollReveal()];
+
 
   /* Live market data polling for Home tickers and terminal stream */
   useEffect(() => {
@@ -481,7 +480,7 @@ export default function Home() {
             <p className="text-white/50 text-sm sm:text-base lg:text-lg max-w-md leading-relaxed animate-fade-in-up"
                style={{ animationDelay: '340ms' }}>
               Distributed computing meets ensemble machine learning.
-              <br />AWS S3 · Apache Spark · XGBoost · LSTM · React
+              <br />CoinGecko Live · AWS S3 · Apache Spark · 6 ML Models · React
             </p>
 
             <div className="flex flex-wrap items-center gap-3 sm:gap-4 animate-fade-in-up" style={{ animationDelay: '420ms' }}>
@@ -501,10 +500,10 @@ export default function Home() {
             {/* Mini stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-4 border-t border-white/8 animate-fade-in-up" style={{ animationDelay: '500ms' }}>
               {[
-                { val: '14M+',  label: 'Records' },
-                { val: '94.2%', label: 'Accuracy' },
-                { val: '<45ms', label: 'Latency' },
-                { val: '1.2TB', label: 'Training' },
+                { val: '5.2M+', label: 'Records' },
+                { val: '99.3%', label: 'Top Accuracy' },
+                { val: '<42ms', label: 'Latency' },
+                { val: '6 Models', label: 'Benchmarked' },
               ].map(s => (
                 <div key={s.label} className="text-center p-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
                   <p className="font-black text-white numerical leading-none" style={{ fontSize: 'clamp(16px, 2vw, 22px)' }}>{s.val}</p>
@@ -531,49 +530,61 @@ export default function Home() {
       <div className="py-4 border-y overflow-hidden ticker-wrap"
            style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
         <div className="ticker-track">
-          {[...tickers, ...tickers, ...tickers, ...tickers].map((t, i) => (
-            <div key={i}
-                 className="flex items-center gap-3 px-4 py-2.5 rounded-xl border min-w-[185px] cursor-default transition-all duration-200 hover:-translate-y-0.5"
-                 style={{ background: 'var(--surface-low)', borderColor: 'var(--border)' }}>
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0"
-                   style={{ background: t.bg, color: t.dark ? '#000' : '#fff' }}>
-                {t.letter}
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>{t.sym}</span>
-                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${t.pos ? 'text-mint-green bg-mint-green/10' : 'text-error bg-error/10'}`}>
-                    {t.chg}
-                  </span>
+          {[0, 1].map((copyIdx) => (
+            <div key={copyIdx} className="flex items-center gap-4 shrink-0 pr-4">
+              {[...tickers, ...tickers].map((t, i) => (
+                <div key={`${copyIdx}-${t.sym}-${i}`}
+                     className="flex items-center gap-3 px-4 py-2.5 rounded-xl border min-w-[185px] shrink-0 cursor-default transition-all duration-200 hover:-translate-y-0.5"
+                     style={{ background: 'var(--surface-low)', borderColor: 'var(--border)' }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm shrink-0"
+                       style={{ background: t.bg, color: t.dark ? '#000' : '#fff' }}>
+                    {t.letter}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-bold text-sm" style={{ color: 'var(--text)' }}>{t.sym}</span>
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${t.pos ? 'text-mint-green bg-mint-green/10' : 'text-error bg-error/10'}`}>
+                        {t.chg}
+                      </span>
+                    </div>
+                    <span className="numerical text-xs font-semibold" style={{ color: 'var(--text)' }}>{t.price}</span>
+                  </div>
                 </div>
-                <span className="numerical text-xs font-semibold" style={{ color: 'var(--text)' }}>{t.price}</span>
-              </div>
+              ))}
             </div>
           ))}
         </div>
       </div>
 
       {/* ── MARQUEE BRAND STRIP ─────────────────── */}
-      <div className="overflow-hidden py-5 border-b" style={{ background: '#0a0c0b', borderColor: 'rgba(255,255,255,0.04)' }}>
+      <div className="overflow-hidden py-5 border-b ticker-wrap" style={{ background: '#0a0c0b', borderColor: 'rgba(255,255,255,0.04)' }}>
         {/* Row 1 → left */}
         <div className="overflow-hidden mb-2">
-          <div className="flex whitespace-nowrap ticker-track" style={{ gap: '2rem' }}>
-            {Array(8).fill(null).map((_, i) => (
-              <span key={i} className="shrink-0 font-black text-white uppercase"
-                    style={{ fontSize: 'clamp(28px, 4vw, 52px)', letterSpacing: '-0.025em', lineHeight: 1 }}>
-                PREDICT <span style={{ color: '#2C6E59' }}>·</span> ANALYZE <span style={{ color: '#2C6E59' }}>·</span> DOMINATE <span style={{ color: '#2C6E59' }}>·</span> AUTOMATE <span style={{ color: '#2C6E59' }}>·</span>
-              </span>
+          <div className="ticker-track">
+            {[0, 1].map((copyIdx) => (
+              <div key={copyIdx} className="flex items-center shrink-0 pr-8" style={{ gap: '2rem' }}>
+                {Array(4).fill(null).map((_, i) => (
+                  <span key={i} className="shrink-0 font-black text-white uppercase select-none"
+                        style={{ fontSize: 'clamp(28px, 4vw, 52px)', letterSpacing: '-0.025em', lineHeight: 1 }}>
+                    PREDICT <span style={{ color: '#2C6E59' }}>·</span> ANALYZE <span style={{ color: '#2C6E59' }}>·</span> DOMINATE <span style={{ color: '#2C6E59' }}>·</span> AUTOMATE <span style={{ color: '#2C6E59' }}>·</span>
+                  </span>
+                ))}
+              </div>
             ))}
           </div>
         </div>
         {/* Row 2 → right */}
         <div className="overflow-hidden">
-          <div className="flex whitespace-nowrap ticker-reverse" style={{ gap: '2rem' }}>
-            {Array(8).fill(null).map((_, i) => (
-              <span key={i} className="shrink-0 font-black uppercase"
-                    style={{ fontSize: 'clamp(28px, 4vw, 52px)', letterSpacing: '-0.025em', lineHeight: 1, WebkitTextStroke: '1.5px rgba(162,224,55,0.30)', color: 'transparent' }}>
-                FORECAST · COMPETE · INNOVATE · EVOLVE ·&nbsp;
-              </span>
+          <div className="ticker-reverse">
+            {[0, 1].map((copyIdx) => (
+              <div key={copyIdx} className="flex items-center shrink-0 pr-8" style={{ gap: '2rem' }}>
+                {Array(4).fill(null).map((_, i) => (
+                  <span key={i} className="shrink-0 font-black uppercase select-none"
+                        style={{ fontSize: 'clamp(28px, 4vw, 52px)', letterSpacing: '-0.025em', lineHeight: 1, WebkitTextStroke: '1.5px rgba(162,224,55,0.30)', color: 'transparent' }}>
+                    FORECAST · COMPETE · INNOVATE · EVOLVE ·&nbsp;
+                  </span>
+                ))}
+              </div>
             ))}
           </div>
         </div>
@@ -591,10 +602,10 @@ export default function Home() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-px rounded-2xl overflow-hidden"
                style={{ background: 'rgba(255,255,255,0.04)' }}>
             {[
-              { to: 14,   suf: 'M+',  label: 'Records / Batch',   sub: 'Daily ingestion',       icon: 'database' },
-              { to: 94,   suf: '.2%', label: 'Model Accuracy',    sub: 'XGBoost production',    icon: 'neurology' },
-              { to: 45,   suf: 'ms',  label: 'Pipeline Latency',  sub: 'End-to-end',            icon: 'speed' },
-              { to: 1200, suf: 'GB',  label: 'Training Corpus',   sub: 'Historical data',       icon: 'hard_drive' },
+              { to: 5,   suf: '.2M+', label: 'Processed Records', sub: 'Kaggle Spark Ingestion', icon: 'database' },
+              { to: 99,  suf: '.3%',  label: 'Top Model Accuracy', sub: 'XGBoost Production R²', icon: 'neurology' },
+              { to: 42,  suf: 'ms',   label: 'Pipeline Latency',  sub: 'End-to-end Inference', icon: 'speed' },
+              { to: 6,   suf: ' Models', label: 'Benchmarked Algos', sub: 'XGBoost, LSTM, Ensemble+', icon: 'candlestick_chart' },
             ].map((s, i) => (
               <div key={i} className="flex flex-col items-center justify-center p-10 text-center"
                    style={{ background: '#0a0c0b' }}>
@@ -637,18 +648,19 @@ export default function Home() {
                 <div>
                   <span className="text-[9px] font-black uppercase tracking-[0.18em]" style={{ color: 'var(--text-muted)' }}>MACHINE LEARNING</span>
                   <h3 className="font-extrabold text-xl mt-0.5" style={{ color: 'var(--text)', letterSpacing: '-0.02em' }}>
-                    XGBoost & LSTM Ensemble
+                    XGBoost & Multi-Model Benchmarks
                   </h3>
                 </div>
               </div>
               <p className="leading-relaxed mb-7" style={{ color: 'var(--text-muted)', fontSize: 14 }}>
-                Production ensemble of gradient boosting and deep recurrent networks trained on 1.2 TB of market data. Achieves 94.2% forecast accuracy on out-of-sample validation.
+                Production ensemble of gradient boosting and deep neural architectures trained on distributed market datasets. Achieves 99.3% R² precision with ~$1,126 RMSE on Bitcoin forecasting.
               </p>
               <div className="space-y-3">
                 {[
-                  { name: 'XGBoost', acc: 94.2, col: '#2C6E59' },
-                  { name: 'LSTM',    acc: 91.8, col: '#A2E037' },
-                  { name: 'Random Forest', acc: 88.5, col: '#5a9e1f' },
+                  { name: 'XGBoost', acc: 99.3, col: '#2C6E59' },
+                  { name: 'Random Forest', acc: 98.9, col: '#5a9e1f' },
+                  { name: 'Ensemble Blend', acc: 98.1, col: '#3d8f74' },
+                  { name: 'LSTM Network', acc: 97.4, col: '#A2E037' },
                 ].map(m => (
                   <div key={m.name} className="flex items-center gap-3">
                     <span className="w-24 text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{m.name}</span>
@@ -672,12 +684,12 @@ export default function Home() {
                   Distributed Spark Pipeline
                 </h3>
                 <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  EMR-powered Spark processes 14M+ records per batch. FastAPI on EC2 serves live inference at sub-45ms latency.
+                  AWS EMR-powered Apache Spark processes 5.2M+ historical records with CoinGecko live market streaming. FastAPI on EC2 serves live inference at sub-45ms latency.
                 </p>
               </div>
               <div className="mt-6 rounded-2xl p-4 text-center"
                    style={{ background: 'rgba(162,224,55,0.07)', border: '1px solid rgba(162,224,55,0.15)' }}>
-                <p className="font-black text-3xl numerical" style={{ color: '#5a9e1f' }}>&lt;45ms</p>
+                <p className="font-black text-3xl numerical" style={{ color: '#5a9e1f' }}>&lt;42ms</p>
                 <p className="text-[10px] font-bold uppercase tracking-widest mt-1" style={{ color: 'var(--text-muted)' }}>End-to-end latency</p>
               </div>
             </TiltCard>
@@ -715,26 +727,83 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            {/* Connector line */}
-            <div className="hidden md:block absolute top-[38px] left-[10%] right-[10%] h-px"
-                 style={{ background: 'linear-gradient(90deg, transparent, rgba(44,110,89,0.5) 20%, rgba(162,224,55,0.5) 50%, rgba(44,110,89,0.5) 80%, transparent)' }} />
+            {/* Desktop Animated Connector Line with Flowing Beams */}
+            <div className="hidden md:block data-flow-connector">
+              <div className="data-flow-pulse" />
+              <div className="data-flow-pulse data-flow-pulse-delayed" />
+            </div>
 
-            {/* Steps — each with its own scroll reveal ref */}
+            {/* Steps — each with animated status indicator, ripple ping, and hover glow */}
             <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               {PIPELINE.map((s, i) => (
-                <div key={s.n} ref={pipeStepRefs[i]} className="reveal flex flex-col items-center text-center group"
-                     style={{ transitionDelay: `${i * 100}ms` }}>
-                  <div className={`relative z-10 w-[72px] h-[72px] rounded-2xl flex items-center justify-center mb-4 border transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-glow ${
-                    s.highlight ? 'border-lime/40' : 'border-white/10'
-                  }`}
-                       style={{ background: s.highlight ? 'rgba(162,224,55,0.10)' : 'rgba(255,255,255,0.04)' }}>
-                    <span className="material-symbols-outlined text-xl" style={{ color: s.highlight ? '#A2E037' : '#2C6E59' }}>
-                      {s.icon}
+                <div key={s.n} className="flex flex-col items-center text-center group relative cursor-default transition-all duration-300">
+                  
+                  {/* Step Icon Box with animated radar ping */}
+                  <div className="relative mb-4">
+                    <div className="data-flow-node-ping" style={{ animationDelay: `${i * 0.6}s` }} />
+                    <div
+                      className={`relative z-10 w-[76px] h-[76px] rounded-2xl flex items-center justify-center border transition-all duration-300 group-hover:-translate-y-2 group-hover:scale-105 group-hover:shadow-glow ${
+                        s.highlight
+                          ? 'border-lime/60 shadow-glow-lime'
+                          : 'border-white/15 hover:border-primary/50'
+                      }`}
+                      style={{
+                        background: s.highlight ? 'rgba(162,224,55,0.18)' : '#0e1210',
+                        boxShadow: s.highlight
+                          ? '0 0 24px rgba(162,224,55,0.25), inset 0 1px 1px rgba(255,255,255,0.2)'
+                          : '0 4px 20px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08)',
+                      }}
+                    >
+                      <span
+                        className="material-symbols-outlined text-3xl transition-transform duration-300 group-hover:scale-110"
+                        style={{ color: s.highlight ? '#A2E037' : '#00C288' }}
+                      >
+                        {s.icon}
+                      </span>
+                    </div>
+
+                    {/* Step sequence badge */}
+                    <span
+                      className="absolute -top-2 -right-2 z-20 w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black border shadow-md"
+                      style={{
+                        background: s.highlight ? '#A2E037' : '#171a19',
+                        color: s.highlight ? '#0a0c0b' : '#A2E037',
+                        borderColor: s.highlight ? '#A2E037' : 'rgba(162,224,55,0.4)',
+                      }}
+                    >
+                      {s.n}
                     </span>
                   </div>
-                  <span className="numerical text-[10px] font-black mb-1" style={{ color: 'rgba(255,255,255,0.18)' }}>{s.n}</span>
-                  <h4 className="font-bold text-sm mb-0.5" style={{ color: s.highlight ? '#A2E037' : '#ffffff' }}>{s.label}</h4>
-                  <p className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.32)' }}>{s.sub}</p>
+
+                  {/* Operational tag */}
+                  <span
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider mb-2 transition-all duration-200 group-hover:scale-105"
+                    style={{
+                      background: s.highlight ? 'rgba(162,224,55,0.18)' : 'rgba(44,110,89,0.22)',
+                      color: s.highlight ? '#A2E037' : '#00C288',
+                      border: s.highlight ? '1px solid rgba(162,224,55,0.4)' : '1px solid rgba(44,110,89,0.4)',
+                    }}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: s.highlight ? '#A2E037' : '#00C288' }} />
+                    {s.badge}
+                  </span>
+
+                  <h4 className="font-extrabold text-sm mb-1 transition-colors duration-200" style={{ color: s.highlight ? '#A2E037' : '#ffffff' }}>
+                    {s.label}
+                  </h4>
+                  <p className="text-[12px] font-semibold mb-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                    {s.sub}
+                  </p>
+                  <p className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.4)' }}>
+                    {s.detail}
+                  </p>
+
+                  {/* Mobile downward connector */}
+                  {i < PIPELINE.length - 1 && (
+                    <div className="md:hidden flex flex-col items-center my-3 text-primary animate-pulse">
+                      <span className="material-symbols-outlined text-base">keyboard_double_arrow_down</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

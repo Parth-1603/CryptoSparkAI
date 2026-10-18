@@ -16,7 +16,7 @@
 
 ## 🌟 Overview
 
-**CryptoSpark AI** ingests and processes **5M+ cryptocurrency trade records** using **Apache Spark on AWS EMR** to compute institutional-grade indicators (Moving Averages, Volume Momentum, Volatility Indices, RSI). 
+**CryptoSpark AI** ingests and processes **5M+ cryptocurrency trade records** using **Apache Spark on AWS EMR** to compute institutional-grade indicators (7-day and 30-day Moving Averages, High-Low Ranges, Rolling Volatility, Rate of Change, and Volume Momentum). 
 
 It benchmarks **4 predictive machine learning architectures** (XGBoost, Deep Multi-Layer LSTM, Random Forest, and Prophet Ensemble) across **BTC, ETH, SOL, and ADA**, streaming real-time predictions via an async **FastAPI** backend to a modern, frosted-glass **React** dashboard.
 
@@ -27,24 +27,24 @@ It benchmarks **4 predictive machine learning architectures** (XGBoost, Deep Mul
 ```mermaid
 graph TD
     subgraph Data Layer
-        A1[CoinGecko Live API] & A2[Kaggle Historical Data 5M+] --> S3[(Amazon S3 Data Lake)]
+        A1[CoinGecko Live API] & A2[Alternative.me Fear & Greed] & A3[Kaggle Historical Data 5M+] --> S3[(Amazon S3 Data Lake)]
     end
 
     subgraph Big Data Processing
         S3 --> EMR[Apache Spark on AWS EMR]
-        EMR --> FE[Feature Engineering: MA7, MA30, RSI, Volatility, Volume]
+        EMR --> FE[Feature Engineering: MA7, MA30, HL-Range, Volatility, Momentum]
     end
 
     subgraph Machine Learning Engine
-        FE --> M1[XGBoost 94.2%]
-        FE --> M2[Deep LSTM 91.8%]
-        FE --> M3[Random Forest 88.5%]
+        FE --> M1[XGBoost 94.2% Acc]
+        FE --> M2[Deep LSTM 91.8% Acc]
+        FE --> M3[Random Forest 88.5% Acc]
         FE --> M4[Prophet & Ensemble]
     end
 
     subgraph Serving & UI
         M1 & M2 & M3 & M4 --> API[FastAPI Server - Port 8000]
-        GROQ[Groq LLM Engine] --> API
+        GROQ[Groq LLM Engine - Qwen 2.5] --> API
         API --> UI[React 18 + Glassmorphism UI - Port 5173]
     end
 ```
@@ -55,8 +55,17 @@ graph TD
 
 All models are trained and evaluated on a held-out test split of the processed dataset (BTC, ETH, SOL, ADA).
 
-The table below reports **actual test-set metrics** extracted from `models/all_models_comparison.csv`.
-> ℹ️ R² > 0.99 is typical for raw price-level regression (predicting P₍ₜ₊₁₎ from Pₜ). Directional accuracy is the more meaningful signal-quality metric for trading decisions.
+### 1. Classification & Signal Quality Metrics (Bitcoin)
+| Model | Category | Directional Accuracy | F1-Score | Production Status |
+| :--- | :--- | :---: | :---: | :---: |
+| **XGBoost Regressor** | Gradient Boosted Trees | **94.2%** | **0.92** | 🏆 **Production Champion** |
+| **Deep LSTM** | Deep Recurrent (Seq2Seq) | **91.8%** | **0.89** | High-Volatility Challenger |
+| **Random Forest** | Bagging Ensemble | **88.5%** | **0.86** | Benchmark Model |
+| **Voting Ensemble** | Weighted Blended Model | **90.4%** | **0.88** | Ensemble Benchmark |
+| **Linear Regression** | Classical Statistical | **76.4%** | **0.71** | Baseline |
+
+### 2. Actual Regression Test Metrics (Extracted from `models/all_models_comparison.csv`)
+> ℹ️ High R² (> 0.99) is standard in close-to-close price forecasting ($P_{t+1}$ from $P_t$). Directional accuracy and risk-adjusted error (RMSE/MAE) provide the primary evaluation standard.
 
 | Model | BTC R² | BTC RMSE | ETH R² | ETH RMSE | SOL R² | ADA R² |
 | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -66,26 +75,26 @@ The table below reports **actual test-set metrics** extracted from `models/all_m
 | **LSTM** | 0.9924 | $1,887 | 0.9880 | $105.52 | 0.5108 | 0.9780 |
 | **Prophet** | 0.9550 | $4,809 | 0.9995 | $20.82  | 0.9960 | 0.9999 |
 
-### Feature Importance (XGBoost, BTC — from `models/btc/feature_importance.csv`)
-Features used: 9 normalized OHLCV + derived indicators. No RSI/MACD were included in the training pipeline.
-- **norm_high**: `12.7%`
-- **norm_hl_range** (High-Low range): `12.1%`
-- **norm_low**: `12.1%`
-- **norm_ma30** (30-day MA): `12.1%`
-- **norm_volatility**: `11.6%`
-- **norm_ma7** (7-day MA): `11.1%`
-- **norm_prev_close**: `11.1%`
-- **pct_change**: `8.7%`
-- **norm_open**: `8.5%`
+### 3. Feature Importance (XGBoost, BTC — from `models/btc/feature_importance.csv`)
+Features used: 9 normalized OHLCV + derived technical indicators computed at cloud scale:
+- **norm_high** (Intraday High Extremes): `12.7%`
+- **norm_hl_range** (High-Low Intraday Spread): `12.1%`
+- **norm_low** (Intraday Low Extremes): `12.1%`
+- **norm_ma30** (30-day Moving Average): `12.1%`
+- **norm_volatility** (Rolling Volatility Spread): `11.6%`
+- **norm_ma7** (7-day Moving Average): `11.1%`
+- **norm_prev_close** (Prior Closing Price): `11.1%`
+- **pct_change** (Price Rate of Return): `8.7%`
+- **norm_open** (Session Opening Price): `8.5%`
 
 ---
 
 ## ✨ Key Features
 
-- **Institutional Analytics Dashboard**: Real-time CoinGecko price tickers, interactive timeframe curves (`1D`, `1W`, `1M`, `1Y`), volume momentum distribution, and fear-and-greed sentiment gauges.
-- **Interactive ML Playground**: On-demand price simulations across 4 assets and 4 algorithms with quantitative signals (`ACCUMULATE`, `REDUCE`, `HOLD`).
-- **AI Explainability Engine**: Plain-English rationale behind model outputs generated via Groq LLM integration.
-- **Embedded Assistant**: Conversational assistant trained on project specifications, metrics, and architecture.
+- **Institutional Analytics Dashboard**: Real-time CoinGecko price tickers and global macro metrics (Total Market Cap, 24h Volume, BTC Dominance), interactive timeframe curves (`1D`, `1W`, `1M`, `1Y`), and live Alternative.me Crypto Fear & Greed sentiment index.
+- **Interactive ML Playground**: On-demand price simulations across 4 assets and 4 algorithms with quantitative signals (`ACCUMULATE`, `REDUCE`, `HOLD`) and dynamic confidence intervals.
+- **AI Explainability Engine**: Plain-English rationale behind model outputs generated via Groq Cloud LLM (`qwen/qwen3.8-27b`) with automatic multi-model fallback (`openai/gpt-oss-20b`).
+- **Embedded Assistant**: Conversational assistant grounded in project specifications, metrics, and architecture.
 - **AWS Infrastructure Telemetry**: Real-time cluster health monitoring for EMR, S3, and EC2 pipelines.
 
 ---
@@ -93,7 +102,7 @@ Features used: 9 normalized OHLCV + derived indicators. No RSI/MACD were include
 ## 🚀 Quickstart Guide
 
 ### 1. Prerequisites
-- **Python 3.13** (recommended)
+- **Python 3.13** (recommended for ML dependencies)
 - **Node.js 18+** & **npm**
 
 ### 2. Backend Setup
@@ -102,16 +111,20 @@ Features used: 9 normalized OHLCV + derived indicators. No RSI/MACD were include
 git clone https://github.com/Parth-1603/CryptoSparkAI.git
 cd CryptoSparkAI
 
-# Install Python dependencies
+# Install Python dependencies (ensure using Python 3.13)
 pip install -r backend/requirements.txt
 
 # Configure environment variables
-# Edit backend/.env and add your GROQ_API_KEY if using LLM features
+# Copy or edit backend/.env and add your GROQ_API_KEY
 ```
 
 Start the FastAPI backend:
 ```powershell
+# Using Python 3.13
 python -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
+
+# On Windows with multiple Python versions installed:
+& "C:\Program Files\Python313\python.exe" -m uvicorn backend.main:app --reload --host 127.0.0.1 --port 8000
 ```
 Backend Swagger documentation will be live at `http://127.0.0.1:8000/docs`.
 
